@@ -1,8 +1,9 @@
 'use client';
 
 import { useEventStream } from '@/hooks/useEventStream';
+import { useSound } from '@/hooks/useSound';
 import { lightColors, phaseNames, LightStatus } from '@/lib/event-state';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Light component for each female guest
 function GuestLight({ 
@@ -124,13 +125,37 @@ function VCRPlayer({ url, playing }: { url?: string; playing: boolean }) {
 
 export default function StagePage() {
   const { state, femaleGuests, maleGuests, connected, error } = useEventStream();
+  const { play } = useSound();
   const [time, setTime] = useState(new Date());
+  const prevLightsRef = useRef<Record<number, LightStatus>>({});
 
   // Update clock
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Play sound effects when lights change
+  useEffect(() => {
+    const prevLights = prevLightsRef.current;
+    
+    // Check each light for changes
+    for (let i = 1; i <= 12; i++) {
+      const prev = prevLights[i];
+      const curr = state.lights[i];
+      
+      if (prev && prev !== curr) {
+        if (curr === 'off') {
+          play('lightOff');
+        } else if (curr === 'burst') {
+          play('burst');
+        }
+      }
+    }
+    
+    // Update ref
+    prevLightsRef.current = { ...state.lights };
+  }, [state.lights, play]);
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
   const vcrUrl = state.vcrType === 'vcr1' ? currentMale?.vcr1Url : currentMale?.vcr2Url;
