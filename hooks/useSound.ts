@@ -20,9 +20,22 @@ export type SoundName = keyof typeof SOUNDS;
 
 export function useSound() {
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const currentVolume = useRef<number>(1);
 
-  const play = useCallback((soundName: SoundName, volume: number = 1) => {
+  // Update volume for ALL audio elements (including currently playing)
+  const setMasterVolume = useCallback((volume: number) => {
+    const vol = Math.min(1, Math.max(0, volume));
+    currentVolume.current = vol;
+    
+    // Update all existing audio elements
+    audioRefs.current.forEach((audio) => {
+      audio.volume = vol;
+    });
+  }, []);
+
+  const play = useCallback((soundName: SoundName, volume?: number) => {
     const path = SOUNDS[soundName];
+    const vol = volume !== undefined ? volume : currentVolume.current;
     
     try {
       // Reuse existing audio element or create new one
@@ -32,7 +45,7 @@ export function useSound() {
         audioRefs.current.set(path, audio);
       }
       
-      audio.volume = Math.min(1, Math.max(0, volume));
+      audio.volume = Math.min(1, Math.max(0, vol));
       audio.currentTime = 0;
       audio.play().catch((e) => {
         // Silently fail if audio can't play (e.g., file not found)
@@ -43,10 +56,11 @@ export function useSound() {
     }
   }, []);
 
-  const playUrl = useCallback((url: string, volume: number = 1) => {
+  const playUrl = useCallback((url: string, volume?: number) => {
+    const vol = volume !== undefined ? volume : currentVolume.current;
     try {
       const audio = new Audio(url);
-      audio.volume = Math.min(1, Math.max(0, volume));
+      audio.volume = Math.min(1, Math.max(0, vol));
       audio.play().catch((e) => {
         console.log(`Sound not available: ${url}`, e);
       });
@@ -55,5 +69,7 @@ export function useSound() {
     }
   }, []);
 
-  return { play, playUrl, SOUNDS };
+  const getMasterVolume = useCallback(() => currentVolume.current, []);
+
+  return { play, playUrl, setMasterVolume, getMasterVolume, SOUNDS };
 }
