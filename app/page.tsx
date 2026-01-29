@@ -86,6 +86,9 @@ export default function Home() {
           />
           <p className="text-gray-500 text-sm">© 2026 NYU Tandon CSSA</p>
           <p className="text-gray-500 text-sm mt-2">与爱相遇，缘来是你 💕</p>
+          <Link href="/event" className="text-pink-400 hover:text-pink-500 text-sm mt-4 inline-block">
+            🎬 活动控制系统
+          </Link>
         </footer>
       </main>
     </div>
