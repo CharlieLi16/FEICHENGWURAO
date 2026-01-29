@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface RegistrationFormProps {
   gender: "male" | "female";
@@ -203,7 +204,14 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
           <Link href="/" className="inline-block text-gray-500 hover:text-gray-700 mb-4">
             ← 返回首页
           </Link>
-          <div className="text-5xl mb-4">{gender === "male" ? "👨" : "👩"}</div>
+          <Image
+            src="/assets/images/tandon-cssa.png"
+            alt="NYU Tandon CSSA Logo"
+            width={100}
+            height={100}
+            className="mx-auto mb-4"
+          />
+          <div className="text-4xl mb-2">{gender === "male" ? "👨" : "👩"}</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {gender === "male" ? "男嘉宾" : "女嘉宾"}报名
           </h1>

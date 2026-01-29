@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -23,7 +24,13 @@ export default function Home() {
         {/* Main content */}
         <div className="text-center mb-12">
           <div className="inline-block mb-6">
-            <span className="text-6xl animate-pulse-slow">💘</span>
+            <Image
+              src="/assets/images/tandon-cssa.png"
+              alt="NYU Tandon CSSA Logo"
+              width={150}
+              height={150}
+              className="mx-auto"
+            />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             NYU Tandon CSSA 2026
