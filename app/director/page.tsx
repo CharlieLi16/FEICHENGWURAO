@@ -25,6 +25,16 @@ const phaseFlow: EventPhase[] = [
   'result',
 ];
 
+// Sound effect definitions for DJ panel
+const soundEffects = [
+  { name: 'maleEnter', label: '男嘉宾入场', emoji: '👤', color: 'bg-blue-500' },
+  { name: 'lightOff', label: '灭灯', emoji: '🌑', color: 'bg-gray-500' },
+  { name: 'burst', label: '爆灯', emoji: '💖', color: 'bg-pink-500' },
+  { name: 'success', label: '牵手成功', emoji: '💕', color: 'bg-green-500' },
+  { name: 'fail', label: '牵手失败', emoji: '💔', color: 'bg-red-500' },
+  { name: 'applause', label: '掌声', emoji: '👏', color: 'bg-yellow-500' },
+] as const;
+
 export default function DirectorPage() {
   const { 
     state, 
@@ -38,6 +48,15 @@ export default function DirectorPage() {
   } = useEventStream();
   const { play } = useSound();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [volume, setVolume] = useState(0.8);
+  const [lastPlayed, setLastPlayed] = useState<string | null>(null);
+
+  // Play sound with current volume
+  const playSound = (soundName: string) => {
+    play(soundName as Parameters<typeof play>[0], volume);
+    setLastPlayed(soundName);
+    setTimeout(() => setLastPlayed(null), 300);
+  };
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
 
@@ -45,7 +64,7 @@ export default function DirectorPage() {
   const goToPhase = async (phase: EventPhase) => {
     // Play sound for specific phases
     if (phase === 'male_enter') {
-      play('maleEnter');
+      playSound('maleEnter');
     } else if (phase === 'result') {
       // Could add success/fail sound here based on result
     }
@@ -74,7 +93,7 @@ export default function DirectorPage() {
 
   // Start new round with a male guest
   const startNewRound = async (maleId: number) => {
-    play('maleEnter'); // Play entrance sound
+    playSound('maleEnter'); // Play entrance sound
     await resetLights();
     await updateState({
       currentMaleGuest: maleId,
@@ -196,6 +215,51 @@ export default function DirectorPage() {
               >
                 ⏹️
               </button>
+            </div>
+          </div>
+
+          {/* DJ Panel - Sound Effects */}
+          <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-xl p-4 border border-purple-500/30">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">🎧 DJ 音效台</h2>
+              <div className="text-xs text-purple-300">
+                {Math.round(volume * 100)}%
+              </div>
+            </div>
+            
+            {/* Volume Slider */}
+            <div className="mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🔈</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                />
+                <span className="text-xl">🔊</span>
+              </div>
+            </div>
+
+            {/* Sound Effect Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              {soundEffects.map(({ name, label, emoji, color }) => (
+                <button
+                  key={name}
+                  onClick={() => playSound(name)}
+                  className={`py-3 rounded-lg transition-all transform ${
+                    lastPlayed === name 
+                      ? `${color} scale-95 ring-2 ring-white` 
+                      : 'bg-gray-700/80 hover:bg-gray-600'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{emoji}</div>
+                  <div className="text-xs">{label}</div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
