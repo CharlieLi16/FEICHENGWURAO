@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import MaleIcon from "@/components/icons/MaleIcon";
+import FemaleIcon from "@/components/icons/FemaleIcon";
 
 export default function Home() {
   return (
@@ -41,7 +43,9 @@ export default function Home() {
           {/* Male guest button */}
           <Link href="/register/male" className="flex-1">
             <div className="card p-8 text-center cursor-pointer border-2 border-transparent hover:border-blue-400 group">
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">♂️</div>
+              <div className="mb-4 group-hover:scale-110 transition-transform">
+                <MaleIcon className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">男嘉宾报名</h3>
               <p className="text-gray-500">Male Guest</p>
               <div className="mt-4 inline-flex items-center text-blue-600 font-medium">
@@ -56,7 +60,9 @@ export default function Home() {
           {/* Female guest button */}
           <Link href="/register/female" className="flex-1">
             <div className="card p-8 text-center cursor-pointer border-2 border-transparent hover:border-pink-400 group">
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">♀️</div>
+              <div className="mb-4 group-hover:scale-110 transition-transform">
+                <FemaleIcon className="w-16 h-16 mx-auto" />
+              </div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">女嘉宾报名</h3>
               <p className="text-gray-500">Female Guest</p>
               <div className="mt-4 inline-flex items-center text-pink-600 font-medium">

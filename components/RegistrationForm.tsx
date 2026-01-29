@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import MaleIcon from "@/components/icons/MaleIcon";
+import FemaleIcon from "@/components/icons/FemaleIcon";
 
 interface RegistrationFormProps {
   gender: "male" | "female";
@@ -211,7 +213,13 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
             height={70}
             className="mx-auto mb-3 rounded-xl shadow-md"
           />
-          <div className="text-5xl mb-4">{gender === "male" ? "♂️" : "♀️"}</div>
+          <div className="mb-4">
+            {gender === "male" ? (
+              <MaleIcon className="w-14 h-14 mx-auto" />
+            ) : (
+              <FemaleIcon className="w-14 h-14 mx-auto" />
+            )}
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {gender === "male" ? "男嘉宾" : "女嘉宾"}报名
           </h1>
