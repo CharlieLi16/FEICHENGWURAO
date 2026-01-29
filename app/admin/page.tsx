@@ -225,7 +225,7 @@ export default function AdminDashboard() {
                     paddingAngle={5}
                     dataKey="value"
                     label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(1)}%`
+                      `${name} ${((percent ?? 0) * 100).toFixed(1)}%`
                     }
                   >
                     {stats.genderData.map((entry, index) => (
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
                     outerRadius={100}
                     dataKey="value"
                     label={({ name, percent }) =>
-                      percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
+                      (percent ?? 0) > 0.05 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ""
                     }
                   >
                     {stats.schoolData.map((entry, index) => (
