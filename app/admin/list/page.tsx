@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import MaleIcon from "@/components/icons/MaleIcon";
 import FemaleIcon from "@/components/icons/FemaleIcon";
@@ -26,6 +26,18 @@ interface RegistrationEntry {
 }
 
 export default function AdminListPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full"></div>
+      </div>
+    }>
+      <AdminListContent />
+    </Suspense>
+  );
+}
+
+function AdminListContent() {
   const searchParams = useSearchParams();
   const [entries, setEntries] = useState<RegistrationEntry[]>([]);
   const [loading, setLoading] = useState(true);
