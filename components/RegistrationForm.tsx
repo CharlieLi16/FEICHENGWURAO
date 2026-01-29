@@ -206,12 +206,12 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
           </Link>
           <Image
             src="/assets/images/tandon-cssa.png"
-            alt="NYU Tandon CSSA Logo"
-            width={100}
-            height={100}
-            className="mx-auto mb-4"
+            alt="NYU Tandon CSSA"
+            width={70}
+            height={70}
+            className="mx-auto mb-3 rounded-xl shadow-md"
           />
-          <div className="text-4xl mb-2">{gender === "male" ? "👨" : "👩"}</div>
+          <div className="text-5xl mb-4">{gender === "male" ? "♂️" : "♀️"}</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {gender === "male" ? "男嘉宾" : "女嘉宾"}报名
           </h1>

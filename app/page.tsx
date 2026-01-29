@@ -5,10 +5,10 @@ export default function Home() {
   return (
     <div className="min-h-screen gradient-bg-subtle relative overflow-hidden">
       {/* Decorative hearts */}
-      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">💕</div>
-      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: "1s" }}>💗</div>
-      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: "2s" }}>💖</div>
-      <div className="absolute bottom-20 right-10 text-6xl opacity-20 animate-float" style={{ animationDelay: "0.5s" }}>💝</div>
+      <div className="absolute top-20 left-1/4 text-6xl opacity-20 animate-float">💕</div>
+      <div className="absolute top-40 right-1/4 text-4xl opacity-20 animate-float" style={{ animationDelay: "1s" }}>💗</div>
+      <div className="absolute bottom-40 left-1/3 text-5xl opacity-20 animate-float" style={{ animationDelay: "2s" }}>💖</div>
+      <div className="absolute bottom-20 right-1/3 text-6xl opacity-20 animate-float" style={{ animationDelay: "0.5s" }}>💝</div>
 
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
         {/* Warning banner */}
@@ -24,19 +24,13 @@ export default function Home() {
         {/* Main content */}
         <div className="text-center mb-12">
           <div className="inline-block mb-6">
-            <Image
-              src="/assets/images/tandon-cssa.png"
-              alt="NYU Tandon CSSA Logo"
-              width={150}
-              height={150}
-              className="mx-auto"
-            />
+            <span className="text-6xl animate-pulse-slow">💘</span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            NYU Tandon CSSA 2026
+          <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-500 via-red-500 to-rose-600 bg-clip-text text-transparent mb-4">
+            纽约非诚勿扰
           </h1>
-          <h2 className="text-3xl md:text-4xl font-bold gradient-bg bg-clip-text text-transparent mb-6">
-            非诚勿扰
+          <h2 className="text-2xl md:text-3xl font-semibold text-gray-700 mb-6">
+            NYU Tandon CSSA 2026
           </h2>
           <p className="text-xl text-gray-600 mb-2">嘉宾报名</p>
           <p className="text-gray-500">找到你的 Mr./Ms. Right ✨</p>
@@ -47,7 +41,7 @@ export default function Home() {
           {/* Male guest button */}
           <Link href="/register/male" className="flex-1">
             <div className="card p-8 text-center cursor-pointer border-2 border-transparent hover:border-blue-400 group">
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">👨</div>
+              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">♂️</div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">男嘉宾报名</h3>
               <p className="text-gray-500">Male Guest</p>
               <div className="mt-4 inline-flex items-center text-blue-600 font-medium">
@@ -62,7 +56,7 @@ export default function Home() {
           {/* Female guest button */}
           <Link href="/register/female" className="flex-1">
             <div className="card p-8 text-center cursor-pointer border-2 border-transparent hover:border-pink-400 group">
-              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">👩</div>
+              <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">♀️</div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">女嘉宾报名</h3>
               <p className="text-gray-500">Female Guest</p>
               <div className="mt-4 inline-flex items-center text-pink-600 font-medium">
@@ -76,9 +70,16 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <footer className="mt-16 text-center text-gray-500 text-sm">
-          <p>© 2026 NYU Tandon CSSA</p>
-          <p className="mt-2">与爱相遇，缘来是你 💕</p>
+        <footer className="mt-16 text-center">
+          <Image
+            src="/assets/images/tandon-cssa.png"
+            alt="NYU Tandon CSSA"
+            width={80}
+            height={80}
+            className="mx-auto mb-4 rounded-2xl shadow-lg"
+          />
+          <p className="text-gray-500 text-sm">© 2026 NYU Tandon CSSA</p>
+          <p className="text-gray-500 text-sm mt-2">与爱相遇，缘来是你 💕</p>
         </footer>
       </main>
     </div>
