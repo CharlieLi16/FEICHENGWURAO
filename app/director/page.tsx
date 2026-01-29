@@ -1,6 +1,7 @@
 'use client';
 
 import { useEventStream } from '@/hooks/useEventStream';
+import { useSound } from '@/hooks/useSound';
 import { EventPhase, phaseNames, lightColors, LightStatus } from '@/lib/event-state';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -35,12 +36,20 @@ export default function DirectorPage() {
     resetLights, 
     resetEvent 
   } = useEventStream();
+  const { play } = useSound();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
 
   // Navigate phases
   const goToPhase = async (phase: EventPhase) => {
+    // Play sound for specific phases
+    if (phase === 'male_enter') {
+      play('maleEnter');
+    } else if (phase === 'result') {
+      // Could add success/fail sound here based on result
+    }
+    
     await updateState({ 
       phase, 
       message: phaseNames[phase],
@@ -65,6 +74,7 @@ export default function DirectorPage() {
 
   // Start new round with a male guest
   const startNewRound = async (maleId: number) => {
+    play('maleEnter'); // Play entrance sound
     await resetLights();
     await updateState({
       currentMaleGuest: maleId,
