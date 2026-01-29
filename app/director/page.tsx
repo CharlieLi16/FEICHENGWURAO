@@ -222,7 +222,7 @@ export default function DirectorPage() {
           <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-xl p-4 border border-purple-500/30">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">🎧 DJ 音效台</h2>
-              <div className="text-xs text-purple-300">
+              <div className="text-sm font-mono text-pink-300 bg-black/30 px-2 py-1 rounded">
                 {Math.round(volume * 100)}%
               </div>
             </div>
@@ -230,17 +230,58 @@ export default function DirectorPage() {
             {/* Volume Slider */}
             <div className="mb-4">
               <div className="flex items-center gap-3">
-                <span className="text-xl">🔈</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
-                />
-                <span className="text-xl">🔊</span>
+                <button 
+                  onClick={() => setVolume(0)} 
+                  className="text-xl hover:scale-110 transition-transform"
+                >
+                  🔇
+                </button>
+                <div className="flex-1 relative h-8 flex items-center">
+                  {/* Track background */}
+                  <div className="absolute inset-x-0 h-3 bg-gray-700 rounded-full" />
+                  {/* Filled track */}
+                  <div 
+                    className="absolute left-0 h-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full transition-all"
+                    style={{ width: `${volume * 100}%` }}
+                  />
+                  {/* Input */}
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  {/* Thumb indicator */}
+                  <div 
+                    className="absolute w-5 h-5 bg-white rounded-full shadow-lg pointer-events-none transition-all"
+                    style={{ left: `calc(${volume * 100}% - 10px)` }}
+                  />
+                </div>
+                <button 
+                  onClick={() => setVolume(1)} 
+                  className="text-xl hover:scale-110 transition-transform"
+                >
+                  🔊
+                </button>
+              </div>
+              {/* Quick volume buttons */}
+              <div className="flex justify-center gap-2 mt-2">
+                {[0.25, 0.5, 0.75, 1].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVolume(v)}
+                    className={`px-3 py-1 text-xs rounded-full transition-all ${
+                      Math.abs(volume - v) < 0.05
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-gray-700/50 hover:bg-gray-600'
+                    }`}
+                  >
+                    {Math.round(v * 100)}%
+                  </button>
+                ))}
               </div>
             </div>
 
