@@ -45,6 +45,8 @@ function AdminListContent() {
   const [activeTab, setActiveTab] = useState<"男" | "女">("男");
   const [selectedEntry, setSelectedEntry] = useState<RegistrationEntry | null>(null);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState<RegistrationEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Handle URL params on initial load
   useEffect(() => {
@@ -105,6 +107,68 @@ function AdminListContent() {
       return dateString;
     }
   };
+
+  const handleDelete = async (entry: RegistrationEntry) => {
+    setDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/admin/list?gender=${activeTab}&rowIndex=${entry.index}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to delete");
+      }
+      // Close modals and refresh data
+      setDeleteConfirm(null);
+      setSelectedEntry(null);
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      setError("删除失败，请重试");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Delete Confirmation Modal
+  if (deleteConfirm) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">确认删除</h2>
+          <p className="text-gray-600 mb-6">
+            确定要删除 <span className="font-semibold">{deleteConfirm.legalName}</span> 的报名信息吗？
+            <br />
+            <span className="text-red-500 text-sm">此操作不可撤销！</span>
+          </p>
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => setDeleteConfirm(null)}
+              disabled={deleting}
+              className="px-6 py-3 rounded-lg font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => handleDelete(deleteConfirm)}
+              disabled={deleting}
+              className="px-6 py-3 rounded-lg font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {deleting ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  删除中...
+                </>
+              ) : (
+                "确认删除"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Detail Modal
   if (selectedEntry) {
@@ -197,6 +261,16 @@ function AdminListContent() {
             {/* Timestamp */}
             <div className="mt-6 pt-6 border-t text-center text-sm text-gray-400">
               提交时间：{formatDate(selectedEntry.submittedAt)}
+            </div>
+
+            {/* Delete Button */}
+            <div className="mt-6 pt-6 border-t">
+              <button
+                onClick={() => setDeleteConfirm(selectedEntry)}
+                className="w-full py-3 rounded-lg font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              >
+                🗑️ 删除此报名
+              </button>
             </div>
           </div>
         </div>
@@ -294,15 +368,26 @@ function AdminListContent() {
                         {formatDate(entry.submittedAt)}
                       </td>
                       <td className="py-4 px-6">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEntry(entry);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                        >
-                          查看详情
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEntry(entry);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                          >
+                            查看
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm(entry);
+                            }}
+                            className="text-red-500 hover:text-red-700 font-medium text-sm"
+                          >
+                            删除
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

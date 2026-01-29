@@ -7,7 +7,7 @@ function getGoogleSheetsClient() {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
   return google.sheets({ version: "v4", auth });
@@ -107,5 +107,88 @@ export async function GET(request: NextRequest) {
       total: 0,
       gender: "未知"
     });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const gender = searchParams.get("gender") || "男";
+    const rowIndexParam = searchParams.get("rowIndex");
+
+    if (!rowIndexParam) {
+      return NextResponse.json(
+        { error: "rowIndex is required" },
+        { status: 400 }
+      );
+    }
+
+    const rowIndex = parseInt(rowIndexParam);
+    if (isNaN(rowIndex) || rowIndex < 1) {
+      return NextResponse.json(
+        { error: "Invalid rowIndex" },
+        { status: 400 }
+      );
+    }
+
+    const sheets = getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    if (!spreadsheetId) {
+      return NextResponse.json(
+        { error: "GOOGLE_SHEET_ID is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const sheetName = gender === "男" ? "男嘉宾" : "女嘉宾";
+
+    // First, get the sheet ID (not the spreadsheet ID, but the individual sheet's ID)
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+
+    const sheet = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === sheetName
+    );
+
+    if (!sheet || !sheet.properties?.sheetId) {
+      return NextResponse.json(
+        { error: `Sheet "${sheetName}" not found` },
+        { status: 404 }
+      );
+    }
+
+    const sheetId = sheet.properties.sheetId;
+
+    // Delete the row using batchUpdate
+    // rowIndex is 1-based (entry index), and row 1 is header
+    // So entry index 1 = row 2 in sheet = index 1 in 0-based
+    // deleteDimension uses 0-based index, so we use rowIndex directly
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndex, // 0-based, so rowIndex (1-based entry) + 1 for header - 1 for 0-based = rowIndex
+                endIndex: rowIndex + 1,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting entry:", error);
+    return NextResponse.json(
+      { error: "Failed to delete entry" },
+      { status: 500 }
+    );
   }
 }
