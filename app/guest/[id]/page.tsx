@@ -1,7 +1,6 @@
 'use client';
 
 import { useEventStream } from '@/hooks/useEventStream';
-import { useSound } from '@/hooks/useSound';
 import { phaseNames, LightStatus, lightColors } from '@/lib/event-state';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -10,7 +9,6 @@ export default function GuestControlPage() {
   const params = useParams();
   const guestId = parseInt(params.id as string);
   const { state, femaleGuests, maleGuests, setLight, connected, error } = useEventStream();
-  const { play } = useSound();
   const [isChanging, setIsChanging] = useState(false);
 
   const currentLight = state.lights[guestId] || 'on';
@@ -31,14 +29,7 @@ export default function GuestControlPage() {
     }
 
     setIsChanging(true);
-    
-    // Play sound effect
-    if (newStatus === 'off') {
-      play('lightOff');
-    } else if (newStatus === 'burst') {
-      play('burst');
-    }
-    
+    // Sound effects play on the main stage screen only
     await setLight(guestId, newStatus);
     setIsChanging(false);
   };
