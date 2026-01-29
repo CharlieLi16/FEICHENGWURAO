@@ -17,12 +17,19 @@ interface RegistrationEntry {
   fileUrl: string;
 }
 
+// Helper to split multiple file URLs
+const getFileUrls = (fileUrl: string): string[] => {
+  if (!fileUrl) return [];
+  return fileUrl.split(" | ").filter((url) => url && !url.startsWith("["));
+};
+
 export default function GalleryPage() {
   const [entries, setEntries] = useState<RegistrationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "男" | "女">("all");
   const [selectedEntry, setSelectedEntry] = useState<RegistrationEntry | null>(null);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   useEffect(() => {
     fetchAllData();
@@ -65,7 +72,13 @@ export default function GalleryPage() {
 
   // Filter out entries without valid file URLs
   const entriesWithMedia = filteredEntries.filter(
-    (entry) => entry.fileUrl && !entry.fileUrl.startsWith("[")
+    (entry) => getFileUrls(entry.fileUrl).length > 0
+  );
+
+  // Count total media files
+  const totalMediaCount = entriesWithMedia.reduce(
+    (acc, entry) => acc + getFileUrls(entry.fileUrl).length,
+    0
   );
 
   const isVideo = (url: string) => {
@@ -138,136 +151,215 @@ export default function GalleryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {entriesWithMedia.map((entry) => (
-              <div
-                key={`${entry.gender}-${entry.index}`}
-                className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                onClick={() => setSelectedEntry(entry)}
-              >
-                {/* Media */}
-                <div className="aspect-square relative">
-                  {isVideo(entry.fileUrl) ? (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <video
-                        src={entry.fileUrl}
-                        className="w-full h-full object-cover"
-                        muted
-                        playsInline
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
+            {entriesWithMedia.map((entry) => {
+              const urls = getFileUrls(entry.fileUrl);
+              const firstUrl = urls[0];
+              return (
+                <div
+                  key={`${entry.gender}-${entry.index}`}
+                  className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                  onClick={() => {
+                    setSelectedEntry(entry);
+                    setCurrentMediaIndex(0);
+                  }}
+                >
+                  {/* Media */}
+                  <div className="aspect-square relative">
+                    {isVideo(firstUrl) ? (
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                        <video
+                          src={firstUrl}
+                          className="w-full h-full object-cover"
+                          muted
+                          playsInline
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <img
-                      src={entry.fileUrl}
-                      alt={entry.legalName}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-
-                {/* Info Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <div className="flex items-center gap-2">
-                    {entry.gender === "男" ? (
-                      <MaleIcon className="w-4 h-4 text-blue-400" />
                     ) : (
-                      <FemaleIcon className="w-4 h-4 text-pink-400" />
+                      <img
+                        src={firstUrl}
+                        alt={entry.legalName}
+                        className="w-full h-full object-cover"
+                      />
                     )}
-                    <span className="text-white font-medium text-sm truncate">
-                      {entry.nickname || entry.legalName}
-                    </span>
-                  </div>
-                  <div className="text-white/70 text-xs mt-1">
-                    {entry.age}岁 · {entry.school}
-                  </div>
-                </div>
 
-              </div>
-            ))}
+                    {/* Multiple files badge */}
+                    {urls.length > 1 && (
+                      <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                        +{urls.length - 1}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                    <div className="flex items-center gap-2">
+                      {entry.gender === "男" ? (
+                        <MaleIcon className="w-4 h-4 text-blue-400" />
+                      ) : (
+                        <FemaleIcon className="w-4 h-4 text-pink-400" />
+                      )}
+                      <span className="text-white font-medium text-sm truncate">
+                        {entry.nickname || entry.legalName}
+                      </span>
+                    </div>
+                    <div className="text-white/70 text-xs mt-1">
+                      {entry.age}岁 · {entry.school}
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* Lightbox Modal */}
-        {selectedEntry && (
-          <div
-            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedEntry(null)}
-          >
-            <button
-              className="absolute top-4 right-4 text-white/80 hover:text-white text-4xl"
+        {selectedEntry && (() => {
+          const urls = getFileUrls(selectedEntry.fileUrl);
+          const currentUrl = urls[currentMediaIndex] || urls[0];
+          return (
+            <div
+              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
               onClick={() => setSelectedEntry(null)}
             >
-              ×
-            </button>
+              <button
+                className="absolute top-4 right-4 text-white/80 hover:text-white text-4xl z-10"
+                onClick={() => setSelectedEntry(null)}
+              >
+                ×
+              </button>
 
-            <div
-              className="max-w-4xl w-full bg-white rounded-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Media */}
-              <div className="relative bg-black">
-                {isVideo(selectedEntry.fileUrl) ? (
-                  <video
-                    src={selectedEntry.fileUrl}
-                    controls
-                    autoPlay
-                    className="w-full max-h-[60vh] object-contain"
-                  />
-                ) : (
-                  <img
-                    src={selectedEntry.fileUrl}
-                    alt={selectedEntry.legalName}
-                    className="w-full max-h-[60vh] object-contain"
-                  />
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {selectedEntry.gender === "男" ? (
-                      <MaleIcon className="w-6 h-6 text-blue-500" />
-                    ) : (
-                      <FemaleIcon className="w-6 h-6 text-pink-500" />
-                    )}
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {selectedEntry.legalName}
-                      </h3>
-                      {selectedEntry.nickname && (
-                        <p className="text-gray-500 text-sm">昵称：{selectedEntry.nickname}</p>
-                      )}
-                    </div>
-                  </div>
-                  <Link
-                    href={`/admin/list?gender=${selectedEntry.gender}&id=${selectedEntry.index}`}
-                    className="px-6 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+              {/* Navigation arrows */}
+              {urls.length > 1 && (
+                <>
+                  <button
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white text-2xl z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentMediaIndex((prev) => (prev === 0 ? urls.length - 1 : prev - 1));
+                    }}
                   >
-                    查看完整资料
-                  </Link>
+                    ‹
+                  </button>
+                  <button
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white text-2xl z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentMediaIndex((prev) => (prev === urls.length - 1 ? 0 : prev + 1));
+                    }}
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+
+              <div
+                className="max-w-4xl w-full bg-white rounded-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Media */}
+                <div className="relative bg-black">
+                  {isVideo(currentUrl) ? (
+                    <video
+                      key={currentUrl}
+                      src={currentUrl}
+                      controls
+                      autoPlay
+                      className="w-full max-h-[60vh] object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={currentUrl}
+                      alt={selectedEntry.legalName}
+                      className="w-full max-h-[60vh] object-contain"
+                    />
+                  )}
+
+                  {/* Media counter */}
+                  {urls.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+                      {currentMediaIndex + 1} / {urls.length}
+                    </div>
+                  )}
                 </div>
-                <div className="mt-4 flex items-center gap-4 text-gray-600">
-                  <span>{selectedEntry.age} 岁</span>
-                  <span>•</span>
-                  <span>{selectedEntry.school}</span>
-                  <span>•</span>
-                  <span>{selectedEntry.grade}</span>
+
+                {/* Thumbnail strip */}
+                {urls.length > 1 && (
+                  <div className="p-3 bg-gray-100 flex gap-2 overflow-x-auto">
+                    {urls.map((url, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentMediaIndex(index)}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                          index === currentMediaIndex
+                            ? "border-pink-500"
+                            : "border-transparent opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        {isVideo(url) ? (
+                          <div className="w-full h-full bg-gray-300 flex items-center justify-center text-xl">
+                            🎬
+                          </div>
+                        ) : (
+                          <img
+                            src={url}
+                            alt={`${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Info */}
+                <div className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {selectedEntry.gender === "男" ? (
+                        <MaleIcon className="w-6 h-6 text-blue-500" />
+                      ) : (
+                        <FemaleIcon className="w-6 h-6 text-pink-500" />
+                      )}
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {selectedEntry.legalName}
+                        </h3>
+                        {selectedEntry.nickname && (
+                          <p className="text-gray-500 text-sm">昵称：{selectedEntry.nickname}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/admin/list?gender=${selectedEntry.gender}&id=${selectedEntry.index}`}
+                      className="px-6 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+                    >
+                      查看完整资料
+                    </Link>
+                  </div>
+                  <div className="mt-4 flex items-center gap-4 text-gray-600">
+                    <span>{selectedEntry.age} 岁</span>
+                    <span>•</span>
+                    <span>{selectedEntry.school}</span>
+                    <span>•</span>
+                    <span>{selectedEntry.grade}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Stats */}
         <div className="mt-8 text-center text-gray-500 text-sm">
-          共 {entriesWithMedia.length} 张照片/视频
+          共 {entriesWithMedia.length} 位嘉宾，{totalMediaCount} 个文件
         </div>
       </div>
     </div>

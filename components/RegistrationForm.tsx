@@ -71,8 +71,8 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
     introduction: "",
   });
 
-  const [file, setFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -86,36 +86,49 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Check file size (max 50MB)
-      if (selectedFile.size > 50 * 1024 * 1024) {
-        alert("文件大小不能超过 50MB");
-        return;
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      const newFiles: File[] = [];
+      const newPreviews: string[] = [];
+      const oversizedFiles: string[] = [];
+
+      Array.from(selectedFiles).forEach((file) => {
+        // Check file size (max 50MB per file)
+        if (file.size > 50 * 1024 * 1024) {
+          oversizedFiles.push(file.name);
+          return;
+        }
+        newFiles.push(file);
+
+        // Create preview for images
+        if (file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setFilePreviews((prev) => [...prev, e.target?.result as string]);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      if (oversizedFiles.length > 0) {
+        alert(`以下文件超过 50MB 限制，已跳过：\n${oversizedFiles.join("\n")}`);
       }
 
-      // Check if video is under 30 seconds (we'll validate this on server)
-      setFile(selectedFile);
-
-      // Create preview for images
-      if (selectedFile.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setFilePreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(selectedFile);
-      } else if (selectedFile.type.startsWith("video/")) {
-        setFilePreview(null); // No preview for video
-      }
+      setFiles((prev) => [...prev, ...newFiles]);
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFilePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate file is selected
-    if (!file) {
-      setErrorMessage("请上传照片或视频");
+    // Validate at least one file is selected
+    if (files.length === 0) {
+      setErrorMessage("请上传至少一张照片或视频");
       setSubmitStatus("error");
       return;
     }
@@ -125,9 +138,11 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
     setErrorMessage("");
 
     try {
-      // First upload the file
-      let fileUrl = "";
-      if (file) {
+      // Upload all files
+      const fileUrls: string[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const fileFormData = new FormData();
         fileFormData.append("file", file);
         fileFormData.append("name", formData.legalName);
@@ -138,17 +153,17 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error("文件上传失败，请稍后重试或发送邮件到 yl11475@nyu.edu");
+          throw new Error(`文件 "${file.name}" 上传失败，请稍后重试或发送邮件到 yl11475@nyu.edu`);
         }
 
         const uploadResult = await uploadResponse.json();
-        fileUrl = uploadResult.fileUrl;
+        fileUrls.push(uploadResult.fileUrl);
       }
 
-      // Then submit the form data
+      // Then submit the form data with all file URLs
       const submitData = {
         ...formData,
-        fileUrl,
+        fileUrl: fileUrls.join(" | "), // Join multiple URLs with separator
         submittedAt: new Date().toISOString(),
       };
 
@@ -516,12 +531,58 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
           {/* Photo/Video Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              照片或视频（30秒以内） <span className="text-red-500">*</span>
+              照片或视频（视频30秒以内） <span className="text-red-500">*</span>
             </label>
+            
+            {/* Selected files list */}
+            {files.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-sm text-gray-600">已选择 {files.length} 个文件：</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {files.map((file, index) => (
+                    <div
+                      key={index}
+                      className="relative bg-gray-50 rounded-lg p-2 border border-gray-200"
+                    >
+                      {filePreviews[index] ? (
+                        <img
+                          src={filePreviews[index]}
+                          alt={file.name}
+                          className="w-full h-24 object-cover rounded mb-2"
+                        />
+                      ) : file.type.startsWith("video/") ? (
+                        <div className="w-full h-24 bg-gray-200 rounded mb-2 flex items-center justify-center text-3xl">
+                          🎬
+                        </div>
+                      ) : (
+                        <div className="w-full h-24 bg-gray-200 rounded mb-2 flex items-center justify-center text-3xl">
+                          📄
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                      <p className="text-xs text-gray-400">
+                        {(file.size / 1024 / 1024).toFixed(1)} MB
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-sm hover:bg-red-600 flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload button */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                file ? `border-${themeColor}-400 bg-${themeColor}-50` : "border-gray-300 hover:border-gray-400"
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                files.length > 0
+                  ? "border-gray-300 hover:border-gray-400"
+                  : "border-gray-300 hover:border-gray-400"
               }`}
             >
               <input
@@ -530,33 +591,17 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
                 accept="image/*,video/*"
                 onChange={handleFileChange}
                 className="hidden"
+                multiple
               />
-              {file ? (
-                <div>
-                  {filePreview ? (
-                    <img
-                      src={filePreview}
-                      alt="Preview"
-                      className="max-h-48 mx-auto rounded-lg mb-4"
-                    />
-                  ) : (
-                    <div className="text-4xl mb-4">🎬</div>
-                  )}
-                  <p className="text-gray-700 font-medium">{file.name}</p>
-                  <p className="text-gray-500 text-sm mt-1">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                  <p className="text-sm text-gray-400 mt-2">点击更换文件</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="text-4xl mb-4">📸</div>
-                  <p className="text-gray-600">点击上传照片或视频</p>
-                  <p className="text-gray-400 text-sm mt-2">
-                    支持图片和视频格式，视频请控制在30秒以内
-                  </p>
-                </div>
-              )}
+              <div>
+                <div className="text-3xl mb-2">➕ 📸</div>
+                <p className="text-gray-600">
+                  {files.length > 0 ? "点击添加更多文件" : "点击上传照片或视频"}
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  支持多选，每个文件最大 50MB
+                </p>
+              </div>
             </div>
           </div>
 

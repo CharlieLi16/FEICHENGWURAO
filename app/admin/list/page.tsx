@@ -185,23 +185,50 @@ function AdminListContent() {
           <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
             {/* Header */}
             <div className="text-center mb-8 pb-6 border-b">
-              {selectedEntry.fileUrl && !selectedEntry.fileUrl.startsWith("[") && (
-                <div className="mb-4">
-                  {selectedEntry.fileUrl.includes("video") ? (
-                    <video
-                      src={selectedEntry.fileUrl}
-                      controls
-                      className="max-h-64 mx-auto rounded-lg"
-                    />
-                  ) : (
-                    <img
-                      src={selectedEntry.fileUrl}
-                      alt={selectedEntry.legalName}
-                      className="max-h-64 mx-auto rounded-lg object-cover"
-                    />
-                  )}
-                </div>
-              )}
+              {selectedEntry.fileUrl && !selectedEntry.fileUrl.startsWith("[") && (() => {
+                const urls = selectedEntry.fileUrl.split(" | ").filter((url) => url && !url.startsWith("["));
+                return urls.length > 0 ? (
+                  <div className="mb-4">
+                    {urls.length === 1 ? (
+                      // Single file
+                      urls[0].includes("video") || urls[0].endsWith(".mp4") || urls[0].endsWith(".mov") ? (
+                        <video
+                          src={urls[0]}
+                          controls
+                          className="max-h-64 mx-auto rounded-lg"
+                        />
+                      ) : (
+                        <img
+                          src={urls[0]}
+                          alt={selectedEntry.legalName}
+                          className="max-h-64 mx-auto rounded-lg object-cover"
+                        />
+                      )
+                    ) : (
+                      // Multiple files - show grid
+                      <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+                        {urls.map((url, index) => (
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
+                            {url.includes("video") || url.endsWith(".mp4") || url.endsWith(".mov") ? (
+                              <video
+                                src={url}
+                                controls
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <img
+                                src={url}
+                                alt={`${selectedEntry.legalName} ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null;
+              })()}
               <h1 className="text-3xl font-bold text-gray-900">
                 {selectedEntry.legalName}
               </h1>
@@ -239,21 +266,28 @@ function AdminListContent() {
               </p>
             </div>
 
-            {/* File Link */}
+            {/* File Links */}
             {selectedEntry.fileUrl && (
               <div className="mt-6 pt-6 border-t">
-                <h3 className="text-sm font-medium text-gray-500 mb-3">照片/视频</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-3">照片/视频链接</h3>
                 {selectedEntry.fileUrl.startsWith("[") ? (
                   <p className="text-gray-400 text-sm">{selectedEntry.fileUrl}</p>
                 ) : (
-                  <a
-                    href={selectedEntry.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm break-all"
-                  >
-                    {selectedEntry.fileUrl}
-                  </a>
+                  <div className="space-y-2">
+                    {selectedEntry.fileUrl.split(" | ").filter(url => url && !url.startsWith("[")).map((url, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="text-gray-400 text-sm">{index + 1}.</span>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-sm break-all"
+                        >
+                          {url}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
