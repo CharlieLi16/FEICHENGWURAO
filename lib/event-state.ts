@@ -28,6 +28,7 @@ export interface FemaleGuest {
   age?: string;
   school?: string;
   major?: string;
+  zodiac?: string;      // 星座
   photo?: string;
   tags: string[];       // 3 tags
   introduction?: string;
@@ -52,8 +53,9 @@ export interface EventState {
   currentRound: number;             // 1-6, which round
   lights: Record<number, LightStatus>;  // 1-12 female guest lights
   heartChoice: number | null;       // Male's secret heart choice
-  showingProfile: number | null;    // Which female's profile is showing
+  showingProfile: number | null;    // Which female's profile is showing (popup)
   showingTag: number | null;        // Which tag index (0-2) is revealed
+  currentFemaleIntro: number | null; // Which female is being introduced (fullscreen)
   vcrPlaying: boolean;
   vcrType: 'vcr1' | 'vcr2' | null;
   message: string;                  // Current phase message/title
@@ -79,6 +81,7 @@ export const initialEventState: EventState = {
   heartChoice: null,
   showingProfile: null,
   showingTag: null,
+  currentFemaleIntro: null,
   vcrPlaying: false,
   vcrType: null,
   message: '等待活动开始...',

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FemaleGuest, MaleGuest } from '@/lib/event-state';
 import Link from 'next/link';
+import SkeletonUpload from '@/components/SkeletonUpload';
 
 interface RegistrationEntry {
   index: number;
@@ -237,6 +238,16 @@ export default function SetupPage() {
                 </select>
               </div>
 
+              {/* Photo Upload - Visual Skeleton */}
+              <SkeletonUpload
+                value={guest.photo}
+                onChange={(url) => updateFemaleGuest(guest.id, 'photo', url || '')}
+                placeholder="嘉宾照片"
+                accept="image/*"
+                aspectRatio="1:1"
+                className="mb-3"
+              />
+
               <div className="space-y-2">
                 <input
                   type="text"
@@ -268,12 +279,27 @@ export default function SetupPage() {
                     className="bg-gray-700 rounded px-3 py-2 text-sm"
                   />
                 </div>
-                <input
-                  type="text"
-                  placeholder="照片URL"
-                  value={guest.photo || ''}
-                  onChange={(e) => updateFemaleGuest(guest.id, 'photo', e.target.value)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 text-sm"
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="星座"
+                    value={guest.zodiac || ''}
+                    onChange={(e) => updateFemaleGuest(guest.id, 'zodiac', e.target.value)}
+                    className="bg-gray-700 rounded px-3 py-2 text-sm"
+                  />
+                  <input
+                    type="text"
+                    placeholder="专业"
+                    value={guest.major || ''}
+                    onChange={(e) => updateFemaleGuest(guest.id, 'major', e.target.value)}
+                    className="bg-gray-700 rounded px-3 py-2 text-sm"
+                  />
+                </div>
+                <textarea
+                  placeholder="自我介绍/兴趣爱好"
+                  value={guest.introduction || ''}
+                  onChange={(e) => updateFemaleGuest(guest.id, 'introduction', e.target.value)}
+                  className="w-full bg-gray-700 rounded px-3 py-2 text-sm h-20 resize-none"
                 />
 
                 {/* Tags */}
@@ -322,6 +348,16 @@ export default function SetupPage() {
                 </select>
               </div>
 
+              {/* Photo Upload - Visual Skeleton */}
+              <SkeletonUpload
+                value={guest.photo}
+                onChange={(url) => updateMaleGuest(guest.id, 'photo', url || '')}
+                placeholder="嘉宾照片"
+                accept="image/*"
+                aspectRatio="1:1"
+                className="mb-3"
+              />
+
               <div className="space-y-2">
                 <input
                   type="text"
@@ -353,31 +389,38 @@ export default function SetupPage() {
                     className="bg-gray-700 rounded px-3 py-2 text-sm"
                   />
                 </div>
-                <input
-                  type="text"
-                  placeholder="照片URL"
-                  value={guest.photo || ''}
-                  onChange={(e) => updateMaleGuest(guest.id, 'photo', e.target.value)}
-                  className="w-full bg-gray-700 rounded px-3 py-2 text-sm"
+                <textarea
+                  placeholder="自我介绍"
+                  value={guest.introduction || ''}
+                  onChange={(e) => updateMaleGuest(guest.id, 'introduction', e.target.value)}
+                  className="w-full bg-gray-700 rounded px-3 py-2 text-sm h-16 resize-none"
                 />
 
-                {/* VCR URLs */}
+                {/* VCR Videos - Visual Skeleton */}
                 <div className="pt-2 border-t border-gray-700">
-                  <div className="text-xs text-gray-400 mb-2">VCR 视频链接</div>
-                  <input
-                    type="text"
-                    placeholder="VCR1 URL (基本资料)"
-                    value={guest.vcr1Url || ''}
-                    onChange={(e) => updateMaleGuest(guest.id, 'vcr1Url', e.target.value)}
-                    className="w-full bg-gray-700 rounded px-3 py-2 text-sm mb-1"
-                  />
-                  <input
-                    type="text"
-                    placeholder="VCR2 URL (情感经历)"
-                    value={guest.vcr2Url || ''}
-                    onChange={(e) => updateMaleGuest(guest.id, 'vcr2Url', e.target.value)}
-                    className="w-full bg-gray-700 rounded px-3 py-2 text-sm"
-                  />
+                  <div className="text-xs text-gray-400 mb-2">VCR 视频</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">VCR1 基本资料</div>
+                      <SkeletonUpload
+                        value={guest.vcr1Url}
+                        onChange={(url) => updateMaleGuest(guest.id, 'vcr1Url', url || '')}
+                        placeholder="VCR1"
+                        accept="video/*"
+                        aspectRatio="16:9"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">VCR2 情感经历</div>
+                      <SkeletonUpload
+                        value={guest.vcr2Url}
+                        onChange={(url) => updateMaleGuest(guest.id, 'vcr2Url', url || '')}
+                        placeholder="VCR2"
+                        accept="video/*"
+                        aspectRatio="16:9"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

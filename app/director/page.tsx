@@ -202,6 +202,83 @@ export default function DirectorPage() {
             </div>
           </div>
 
+          {/* Female Guest Introduction Control */}
+          <div className="bg-gradient-to-br from-pink-900/50 to-rose-900/50 rounded-xl p-4 border border-pink-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">👩 女嘉宾介绍</h2>
+              {state.currentFemaleIntro && (
+                <button
+                  onClick={() => updateState({ currentFemaleIntro: null })}
+                  className="px-3 py-1 bg-red-500/50 hover:bg-red-500 rounded-lg text-sm"
+                >
+                  ✕ 关闭
+                </button>
+              )}
+            </div>
+            
+            {/* Current intro status */}
+            {state.currentFemaleIntro ? (
+              <div className="mb-3 p-3 bg-pink-500/20 rounded-lg text-center">
+                <span className="text-pink-300">正在展示：</span>
+                <span className="font-bold text-lg ml-2">
+                  {state.currentFemaleIntro}号女嘉宾
+                </span>
+              </div>
+            ) : (
+              <div className="mb-3 p-3 bg-gray-700/50 rounded-lg text-center text-gray-400 text-sm">
+                点击下方选择要介绍的女嘉宾
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => {
+                  const current = state.currentFemaleIntro || 0;
+                  const prev = current <= 1 ? 12 : current - 1;
+                  updateState({ currentFemaleIntro: prev });
+                }}
+                className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+              >
+                ← 上一位
+              </button>
+              <button
+                onClick={() => {
+                  const current = state.currentFemaleIntro || 0;
+                  const next = current >= 12 ? 1 : current + 1;
+                  updateState({ currentFemaleIntro: next });
+                }}
+                className="flex-1 py-2 bg-pink-600 hover:bg-pink-500 rounded-lg"
+              >
+                下一位 →
+              </button>
+            </div>
+
+            {/* Guest selection grid */}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((id) => {
+                const guest = femaleGuests.find(g => g.id === id);
+                const isActive = state.currentFemaleIntro === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => updateState({ currentFemaleIntro: isActive ? null : id })}
+                    className={`py-2 rounded-lg transition-all text-xs ${
+                      isActive
+                        ? 'bg-pink-500 ring-2 ring-pink-300'
+                        : 'bg-gray-700 hover:bg-gray-600'
+                    }`}
+                  >
+                    <div className="font-bold">#{id}</div>
+                    <div className="truncate px-1 opacity-70">
+                      {guest?.nickname || guest?.name || '-'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* VCR Control */}
           <div className="bg-gray-800 rounded-xl p-4">
             <h2 className="text-lg font-semibold mb-3">VCR 控制</h2>

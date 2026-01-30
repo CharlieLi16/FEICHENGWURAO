@@ -2,8 +2,9 @@
 
 import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
-import { lightColors, phaseNames, LightStatus } from '@/lib/event-state';
+import { lightColors, phaseNames, LightStatus, FemaleGuest } from '@/lib/event-state';
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 
 // Light component for each female guest
 function GuestLight({ 
@@ -123,6 +124,113 @@ function VCRPlayer({ url, playing }: { url?: string; playing: boolean }) {
   );
 }
 
+// Fullscreen Female Guest Profile (PPT-style)
+function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Pink gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-300 via-pink-200 to-white" />
+      
+      {/* Decorative border */}
+      <div className="absolute inset-4 md:inset-8 border-4 border-pink-400/50 rounded-3xl" />
+      
+      {/* Content */}
+      <div className="relative h-full flex flex-col md:flex-row items-center justify-center p-8 md:p-16">
+        {/* Left side - Info */}
+        <div className="flex-1 flex flex-col justify-center md:pr-8 text-center md:text-left mb-8 md:mb-0">
+          {/* Name */}
+          <h1 className="text-5xl md:text-7xl font-bold text-pink-600 mb-6 font-serif">
+            {guest.nickname || guest.name}
+          </h1>
+          
+          {/* Basic info */}
+          <div className="text-2xl md:text-3xl text-pink-500 mb-4 space-y-2">
+            <p className="font-medium">
+              {guest.age && `${guest.age}岁`}
+              {guest.zodiac && ` ${guest.zodiac}`}
+            </p>
+            <p>{guest.school}</p>
+            {guest.major && (
+              <p className="text-xl md:text-2xl text-pink-400">
+                Major: {guest.major}
+              </p>
+            )}
+          </div>
+          
+          {/* Introduction */}
+          {guest.introduction && (
+            <div className="mt-6 p-4 bg-white/50 rounded-2xl">
+              <p className="text-xl md:text-2xl text-pink-600 leading-relaxed">
+                {guest.introduction}
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Right side - Photo */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {/* Love letter decoration */}
+          <div className="absolute top-8 right-1/3 md:right-1/4 text-6xl md:text-8xl animate-bounce">
+            💌
+          </div>
+          
+          {/* Photo card */}
+          <div className="relative">
+            {/* Photo container with shadow */}
+            <div className="relative bg-white rounded-3xl p-3 shadow-2xl transform rotate-2 hover:rotate-0 transition-transform">
+              {guest.photo ? (
+                <img
+                  src={guest.photo}
+                  alt={guest.name}
+                  className="w-64 h-80 md:w-80 md:h-96 object-cover rounded-2xl"
+                />
+              ) : (
+                <div className="w-64 h-80 md:w-80 md:h-96 bg-gradient-to-br from-pink-200 to-pink-300 rounded-2xl flex items-center justify-center">
+                  <span className="text-8xl">👩</span>
+                </div>
+              )}
+              
+              {/* Heart decoration on photo */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg">
+                  💗
+                </div>
+              </div>
+            </div>
+            
+            {/* Guest number badge */}
+            <div className="mt-6 text-center">
+              <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-2xl md:text-3xl font-bold px-8 py-3 rounded-full shadow-lg">
+                {guest.id}号女嘉宾
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Logo */}
+      <div className="absolute bottom-6 right-8 flex items-center gap-3">
+        <Image
+          src="/assets/images/tandon-cssa.png"
+          alt="Tandon CSSA"
+          width={60}
+          height={60}
+          className="rounded-lg"
+        />
+        <div className="text-pink-600 font-bold">
+          <div className="text-lg">TANDON CSSA</div>
+          <div className="text-xs text-pink-400">中国学生学者联合会</div>
+        </div>
+      </div>
+      
+      {/* Floating hearts decoration */}
+      <div className="absolute top-1/4 left-8 text-4xl animate-pulse opacity-50">💕</div>
+      <div className="absolute bottom-1/3 left-16 text-3xl animate-pulse opacity-40" style={{ animationDelay: '0.5s' }}>💗</div>
+      <div className="absolute top-1/3 right-8 text-5xl animate-pulse opacity-30" style={{ animationDelay: '1s' }}>💖</div>
+    </div>
+  );
+}
+
 export default function StagePage() {
   const { state, femaleGuests, maleGuests, connected, error } = useEventStream();
   const { play } = useSound();
@@ -164,10 +272,18 @@ export default function StagePage() {
   const onCount = Object.values(state.lights).filter(s => s === 'on').length;
   const burstCount = Object.values(state.lights).filter(s => s === 'burst').length;
 
+  // Get current female for intro
+  const currentFemaleForIntro = femaleGuests.find(g => g.id === state.currentFemaleIntro);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 text-white overflow-hidden">
       {/* VCR Overlay */}
       <VCRPlayer url={vcrUrl} playing={state.vcrPlaying} />
+
+      {/* Fullscreen Female Introduction (PPT-style) */}
+      {currentFemaleForIntro && (
+        <FemaleGuestFullscreen guest={currentFemaleForIntro} />
+      )}
 
       {/* Header */}
       <header className="relative z-10 p-4 md:p-6">
