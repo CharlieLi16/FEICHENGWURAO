@@ -32,6 +32,9 @@ const soundEffects = [
   { name: 'burst', label: '爆灯', emoji: '💖', color: 'bg-pink-500' },
   { name: 'success', label: '牵手成功', emoji: '💕', color: 'bg-green-500' },
   { name: 'fail', label: '牵手失败', emoji: '💔', color: 'bg-red-500' },
+  { name: 'vcrStart', label: 'VCR开始', emoji: '🎬', color: 'bg-purple-500' },
+  { name: 'roundStart', label: '环节开始', emoji: '🎯', color: 'bg-orange-500' },
+  { name: 'countdown', label: '倒计时', emoji: '⏱️', color: 'bg-cyan-500' },
   { name: 'applause', label: '掌声', emoji: '👏', color: 'bg-yellow-500' },
 ] as const;
 
@@ -204,13 +207,19 @@ export default function DirectorPage() {
             <h2 className="text-lg font-semibold mb-3">VCR 控制</h2>
             <div className="flex gap-2">
               <button
-                onClick={() => updateState({ vcrType: 'vcr1', vcrPlaying: true })}
+                onClick={() => {
+                  playSound('vcrStart');
+                  updateState({ vcrType: 'vcr1', vcrPlaying: true });
+                }}
                 className={`flex-1 py-3 rounded-lg ${state.vcrType === 'vcr1' && state.vcrPlaying ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'}`}
               >
                 ▶️ VCR1
               </button>
               <button
-                onClick={() => updateState({ vcrType: 'vcr2', vcrPlaying: true })}
+                onClick={() => {
+                  playSound('vcrStart');
+                  updateState({ vcrType: 'vcr2', vcrPlaying: true });
+                }}
                 className={`flex-1 py-3 rounded-lg ${state.vcrType === 'vcr2' && state.vcrPlaying ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'}`}
               >
                 ▶️ VCR2
@@ -220,6 +229,37 @@ export default function DirectorPage() {
                 className="py-3 px-4 bg-red-600 rounded-lg hover:bg-red-500"
               >
                 ⏹️
+              </button>
+            </div>
+          </div>
+
+          {/* Final Result Buttons */}
+          <div className="bg-gray-800 rounded-xl p-4">
+            <h2 className="text-lg font-semibold mb-3">最终结果</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  playSound('success');
+                  updateState({ 
+                    phase: 'result', 
+                    message: '💕 牵手成功！' 
+                  });
+                }}
+                className="flex-1 py-4 bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg hover:from-green-500 hover:to-emerald-400 font-bold"
+              >
+                💕 牵手成功
+              </button>
+              <button
+                onClick={() => {
+                  playSound('fail');
+                  updateState({ 
+                    phase: 'result', 
+                    message: '💔 牵手失败' 
+                  });
+                }}
+                className="flex-1 py-4 bg-gradient-to-r from-red-600 to-rose-500 rounded-lg hover:from-red-500 hover:to-rose-400 font-bold"
+              >
+                💔 牵手失败
               </button>
             </div>
           </div>
@@ -292,7 +332,7 @@ export default function DirectorPage() {
             </div>
 
             {/* Sound Effect Buttons */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {soundEffects.map(({ name, label, emoji, color }) => (
                 <button
                   key={name}
