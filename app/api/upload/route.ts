@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
 
     // Different size limits for images and videos
     const isVideoFile = isVideo || isVideoByExtension;
-    const maxSize = isVideoFile ? 100 * 1024 * 1024 : 10 * 1024 * 1024; // 100MB for videos, 10MB for images
-    const maxSizeMB = isVideoFile ? 100 : 10;
+    const maxSize = isVideoFile ? 500 * 1024 * 1024 : 10 * 1024 * 1024; // 500MB for videos, 10MB for images
+    const maxSizeMB = isVideoFile ? 500 : 10;
     
     if (file.size > maxSize) {
       console.log("[Upload API] Error: File too large", file.size);
