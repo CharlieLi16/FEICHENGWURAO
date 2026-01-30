@@ -9,6 +9,7 @@ interface SkeletonUploadProps {
   accept?: string;
   className?: string;
   aspectRatio?: '1:1' | '16:9' | '4:3' | 'auto';
+  allowUrlInput?: boolean; // Allow pasting video URLs directly
 }
 
 export default function SkeletonUpload({
@@ -18,11 +19,14 @@ export default function SkeletonUpload({
   accept = 'image/*,video/*',
   className = '',
   aspectRatio = 'auto',
+  allowUrlInput = false,
 }: SkeletonUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Aspect ratio classes
@@ -60,11 +64,14 @@ export default function SkeletonUpload({
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        const errorText = await response.text().catch(() => 'unknown');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Upload failed',data:{status:response.status,statusText:response.statusText,errorBody:errorText?.substring?.(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
-        throw new Error('上传失败');
+        let errorMessage = '上传失败';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -130,17 +137,41 @@ export default function SkeletonUpload({
     inputRef.current?.click();
   };
 
-  // Check if value is video
-  const isVideo = value && (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov') || value.includes('.MOV'));
+  // Check if value is video (by extension or common video hosting patterns)
+  const isVideo = value && (
+    value.includes('.mp4') || 
+    value.includes('.webm') || 
+    value.includes('.mov') || 
+    value.includes('.MOV') ||
+    value.includes('.m4v') ||
+    value.includes('.avi') ||
+    value.includes('youtube.com') ||
+    value.includes('youtu.be') ||
+    value.includes('bilibili.com') ||
+    value.includes('vimeo.com')
+  );
+  
+  // Check if it's an embeddable video platform
+  const isEmbedVideo = value && (
+    value.includes('youtube.com') ||
+    value.includes('youtu.be') ||
+    value.includes('bilibili.com') ||
+    value.includes('vimeo.com')
+  );
   
   // Check if value is a valid URL (not placeholder text)
   const isValidUrl = value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('blob:'));
 
-  // #region agent log
-  if (value) {
-    fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:render',message:'Rendering with value',data:{value:value?.substring?.(0,80),isVideo,isValidUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
-  }
-  // #endregion
+  // Handle URL input submission
+  const handleUrlSubmit = () => {
+    if (urlInput.trim() && (urlInput.startsWith('http://') || urlInput.startsWith('https://'))) {
+      onChange(urlInput.trim());
+      setUrlInput('');
+      setShowUrlInput(false);
+    } else {
+      setError('请输入有效的URL（以 http:// 或 https:// 开头）');
+    }
+  };
 
   return (
     <div className={`relative ${className}`}>
@@ -153,7 +184,7 @@ export default function SkeletonUpload({
       />
 
       {/* Empty State - Skeleton Placeholder */}
-      {!value && !uploading && (
+      {!value && !uploading && !showUrlInput && (
         <div
           onClick={() => inputRef.current?.click()}
           onDragOver={handleDragOver}
@@ -178,6 +209,57 @@ export default function SkeletonUpload({
           </div>
           <div className="text-xs text-gray-500 mt-1">
             点击或拖拽
+          </div>
+          {allowUrlInput && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUrlInput(true);
+              }}
+              className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
+            >
+              或粘贴视频链接
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* URL Input State */}
+      {!value && !uploading && showUrlInput && (
+        <div className={`${aspectClasses[aspectRatio]} flex flex-col items-center justify-center bg-gray-700/50 border-2 border-dashed border-gray-600 rounded-xl p-4`}>
+          <div className="text-sm text-gray-300 mb-2">粘贴视频链接</div>
+          <div className="text-xs text-gray-500 mb-3">支持 YouTube, Bilibili, 或直接视频URL</div>
+          <input
+            type="text"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleUrlSubmit()}
+            placeholder="https://..."
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-sm text-white placeholder-gray-500 focus:border-pink-500 focus:outline-none"
+            autoFocus
+          />
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleUrlSubmit}
+              className="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 rounded text-sm"
+            >
+              确定
+            </button>
+            <button
+              onClick={() => {
+                setShowUrlInput(false);
+                setUrlInput('');
+              }}
+              className="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded text-sm"
+            >
+              取消
+            </button>
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+            >
+              上传文件
+            </button>
           </div>
         </div>
       )}
@@ -217,18 +299,27 @@ export default function SkeletonUpload({
           onDrop={handleDrop}
         >
           {/* Preview */}
-          {isVideo ? (
+          {isEmbedVideo ? (
+            // Show link preview for embedded video platforms
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800 p-4">
+              <div className="text-4xl mb-2">
+                {value.includes('youtube') || value.includes('youtu.be') ? '▶️' : 
+                 value.includes('bilibili') ? '📺' : '🎬'}
+              </div>
+              <div className="text-sm text-gray-300 text-center">视频链接已设置</div>
+              <div className="text-xs text-gray-500 mt-1 break-all max-w-full line-clamp-2">{value}</div>
+            </div>
+          ) : isVideo ? (
             <video
               src={value}
               className="w-full h-full object-cover"
               muted
               loop
+              playsInline
               onMouseEnter={(e) => e.currentTarget.play()}
               onMouseLeave={(e) => e.currentTarget.pause()}
               onError={(e) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:videoPreview',message:'Video load error',data:{src:value?.substring?.(0,100)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
-                // #endregion
+                console.error('[SkeletonUpload] Video failed to load:', value);
               }}
             />
           ) : (
@@ -237,9 +328,6 @@ export default function SkeletonUpload({
               alt={placeholder}
               className="w-full h-full object-cover"
               onError={(e) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:imgPreview',message:'Image load error',data:{src:value?.substring?.(0,100)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
-                // #endregion
                 console.error('[SkeletonUpload] Image failed to load:', value);
               }}
             />
@@ -258,8 +346,19 @@ export default function SkeletonUpload({
               onClick={handleReplace}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm flex items-center gap-2"
             >
-              🔄 替换
+              🔄 替换文件
             </button>
+            {allowUrlInput && (
+              <button
+                onClick={() => {
+                  onChange(null);
+                  setShowUrlInput(true);
+                }}
+                className="px-4 py-2 bg-blue-500/50 hover:bg-blue-500/70 rounded-lg text-sm flex items-center gap-2"
+              >
+                🔗 使用链接
+              </button>
+            )}
             <button
               onClick={handleDelete}
               className="px-4 py-2 bg-red-500/50 hover:bg-red-500/70 rounded-lg text-sm flex items-center gap-2"

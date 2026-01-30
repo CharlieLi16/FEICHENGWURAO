@@ -47,6 +47,41 @@ export interface MaleGuest {
   introduction?: string;
 }
 
+// Slide slot for custom designed images/pages
+export interface SlideSlot {
+  id: string;           // 'opening', 'intermission', 'custom-1', etc.
+  name: string;         // Display name
+  imageUrl?: string;    // Uploaded image URL
+  description?: string; // Usage hint
+}
+
+// Pre-defined slide slot IDs
+export type SlideSlotId = 
+  | 'opening'       // 开场幻灯片
+  | 'intermission'  // 中场休息
+  | 'success'       // 牵手成功
+  | 'fail'          // 牵手失败
+  | 'ending'        // 结束页面
+  | 'custom-1'      // 自定义1
+  | 'custom-2'      // 自定义2
+  | 'custom-3'      // 自定义3
+  | 'custom-4'      // 自定义4
+  | 'custom-5';     // 自定义5
+
+// Default slide slots
+export const defaultSlideSlots: SlideSlot[] = [
+  { id: 'opening', name: '开场幻灯片', description: '活动开始前展示' },
+  { id: 'intermission', name: '中场休息', description: '中场时展示' },
+  { id: 'success', name: '牵手成功', description: '配对成功时展示' },
+  { id: 'fail', name: '牵手失败', description: '配对失败时展示' },
+  { id: 'ending', name: '结束页面', description: '活动结束时展示' },
+  { id: 'custom-1', name: '自定义幻灯片 1', description: '可随时调用' },
+  { id: 'custom-2', name: '自定义幻灯片 2', description: '可随时调用' },
+  { id: 'custom-3', name: '自定义幻灯片 3', description: '可随时调用' },
+  { id: 'custom-4', name: '自定义幻灯片 4', description: '可随时调用' },
+  { id: 'custom-5', name: '自定义幻灯片 5', description: '可随时调用' },
+];
+
 export interface EventState {
   phase: EventPhase;
   currentMaleGuest: number;         // 1-6, which male guest is on stage
@@ -59,6 +94,7 @@ export interface EventState {
   vcrPlaying: boolean;
   vcrType: 'vcr1' | 'vcr2' | null;
   message: string;                  // Current phase message/title
+  currentSlide: string | null;      // Current slide ID being shown (fullscreen)
   lastUpdated: number;              // Timestamp
 }
 
@@ -66,6 +102,7 @@ export interface EventData {
   state: EventState;
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
+  slides: SlideSlot[];              // Slide configurations
 }
 
 // Initial state
@@ -85,6 +122,7 @@ export const initialEventState: EventState = {
   vcrPlaying: false,
   vcrType: null,
   message: '等待活动开始...',
+  currentSlide: null,
   lastUpdated: Date.now(),
 };
 

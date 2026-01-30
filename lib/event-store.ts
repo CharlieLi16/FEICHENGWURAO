@@ -1,11 +1,12 @@
 // In-memory event state store (for serverless, consider using Vercel KV or similar)
 
-import { EventState, EventData, FemaleGuest, MaleGuest, initialEventState } from './event-state';
+import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
 
 // Global state (works in development, for production use Vercel KV)
 let eventState: EventState = { ...initialEventState };
 let femaleGuests: FemaleGuest[] = [];
 let maleGuests: MaleGuest[] = [];
+let slides: SlideSlot[] = [...defaultSlideSlots];
 
 // Subscribers for SSE
 type Subscriber = (data: EventData) => void;
@@ -16,6 +17,7 @@ export function getEventData(): EventData {
     state: eventState,
     femaleGuests,
     maleGuests,
+    slides,
   };
 }
 
@@ -76,6 +78,22 @@ export function getFemaleGuests(): FemaleGuest[] {
 
 export function getMaleGuests(): MaleGuest[] {
   return maleGuests;
+}
+
+export function getSlides(): SlideSlot[] {
+  return slides;
+}
+
+export function setSlides(newSlides: SlideSlot[]): void {
+  slides = newSlides;
+  notifySubscribers();
+}
+
+export function updateSlide(slideId: string, imageUrl: string | null): void {
+  slides = slides.map(slide => 
+    slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
+  );
+  notifySubscribers();
 }
 
 export function resetEvent(): void {

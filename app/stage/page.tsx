@@ -231,8 +231,21 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
   );
 }
 
+// Fullscreen Slide Display
+function SlideOverlay({ imageUrl, slideName }: { imageUrl: string; slideName: string }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center">
+      <img
+        src={imageUrl}
+        alt={slideName}
+        className="max-w-full max-h-full w-auto h-auto object-contain"
+      />
+    </div>
+  );
+}
+
 export default function StagePage() {
-  const { state, femaleGuests, maleGuests, connected, error } = useEventStream();
+  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
   const { play } = useSound();
   const [time, setTime] = useState(new Date());
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
@@ -275,8 +288,16 @@ export default function StagePage() {
   // Get current female for intro
   const currentFemaleForIntro = femaleGuests.find(g => g.id === state.currentFemaleIntro);
 
+  // Get current slide for display
+  const currentSlide = state.currentSlide ? slides.find(s => s.id === state.currentSlide) : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 text-white overflow-hidden">
+      {/* Slide Overlay - highest priority, displays over everything */}
+      {currentSlide?.imageUrl && (
+        <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} />
+      )}
+
       {/* VCR Overlay */}
       <VCRPlayer url={vcrUrl} playing={state.vcrPlaying} />
 

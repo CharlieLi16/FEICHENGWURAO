@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { EventData, EventState, initialEventState } from '@/lib/event-state';
+import { EventData, EventState, initialEventState, defaultSlideSlots } from '@/lib/event-state';
 
 export function useEventStream() {
   const [eventData, setEventData] = useState<EventData>({
     state: initialEventState,
     femaleGuests: [],
     maleGuests: [],
+    slides: defaultSlideSlots,
   });
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +117,34 @@ export function useEventStream() {
     }
   }, []);
 
+  const showSlide = useCallback(async (slideId: string) => {
+    try {
+      const response = await fetch('/api/event/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'showSlide', slideId }),
+      });
+      return response.ok;
+    } catch (e) {
+      console.error('Error showing slide:', e);
+      return false;
+    }
+  }, []);
+
+  const hideSlide = useCallback(async () => {
+    try {
+      const response = await fetch('/api/event/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'hideSlide' }),
+      });
+      return response.ok;
+    } catch (e) {
+      console.error('Error hiding slide:', e);
+      return false;
+    }
+  }, []);
+
   return {
     ...eventData,
     connected,
@@ -124,5 +153,7 @@ export function useEventStream() {
     setLight,
     resetLights,
     resetEvent,
+    showSlide,
+    hideSlide,
   };
 }

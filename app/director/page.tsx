@@ -2,7 +2,7 @@
 
 import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
-import { EventPhase, phaseNames, lightColors, LightStatus } from '@/lib/event-state';
+import { EventPhase, phaseNames, lightColors, SlideSlot } from '@/lib/event-state';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -42,12 +42,15 @@ export default function DirectorPage() {
   const { 
     state, 
     femaleGuests, 
-    maleGuests, 
+    maleGuests,
+    slides,
     connected, 
     updateState, 
     setLight, 
     resetLights, 
-    resetEvent 
+    resetEvent,
+    showSlide,
+    hideSlide,
   } = useEventStream();
   const { play, setMasterVolume, getMasterVolume } = useSound();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -424,6 +427,81 @@ export default function DirectorPage() {
                   <div className="text-xs">{label}</div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Slide Control Panel */}
+          <div className="bg-gradient-to-br from-indigo-900/50 to-blue-900/50 rounded-xl p-4 border border-indigo-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">📽️ 幻灯片</h2>
+              <Link
+                href="/director/slides"
+                className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600"
+              >
+                管理
+              </Link>
+            </div>
+
+            {/* Current slide status */}
+            {state.currentSlide ? (
+              <div className="mb-3 p-2 bg-indigo-500/20 rounded-lg flex items-center justify-between">
+                <span className="text-sm">
+                  正在展示: <strong>{slides.find(s => s.id === state.currentSlide)?.name || state.currentSlide}</strong>
+                </span>
+                <button
+                  onClick={hideSlide}
+                  className="px-2 py-1 bg-red-500/50 hover:bg-red-500 rounded text-xs"
+                >
+                  ✕ 关闭
+                </button>
+              </div>
+            ) : (
+              <div className="mb-3 p-2 bg-gray-700/50 rounded-lg text-center text-gray-400 text-sm">
+                当前无幻灯片
+              </div>
+            )}
+
+            {/* Preset slides - quick access */}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {slides.filter(s => !s.id.startsWith('custom')).map((slide) => (
+                <button
+                  key={slide.id}
+                  onClick={() => slide.imageUrl ? showSlide(slide.id) : null}
+                  disabled={!slide.imageUrl}
+                  className={`py-2 px-3 rounded-lg transition-all ${
+                    state.currentSlide === slide.id
+                      ? 'bg-indigo-500 ring-2 ring-indigo-300'
+                      : slide.imageUrl
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {slide.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom slides */}
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <div className="text-xs text-gray-400 mb-2">自定义幻灯片</div>
+              <div className="flex gap-2 flex-wrap">
+                {slides.filter(s => s.id.startsWith('custom')).map((slide, i) => (
+                  <button
+                    key={slide.id}
+                    onClick={() => slide.imageUrl ? showSlide(slide.id) : null}
+                    disabled={!slide.imageUrl}
+                    className={`py-1.5 px-3 rounded-lg text-xs transition-all ${
+                      state.currentSlide === slide.id
+                        ? 'bg-indigo-500 ring-2 ring-indigo-300'
+                        : slide.imageUrl
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    #{i + 1}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

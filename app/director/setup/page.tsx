@@ -415,7 +415,7 @@ export default function SetupPage() {
 
                 {/* VCR Videos - Visual Skeleton */}
                 <div className="pt-2 border-t border-gray-700">
-                  <div className="text-xs text-gray-400 mb-2">VCR 视频</div>
+                  <div className="text-xs text-gray-400 mb-2">VCR 视频 <span className="text-gray-500">(支持上传或粘贴链接)</span></div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <div className="text-xs text-gray-500 mb-1">VCR1 基本资料</div>
@@ -425,6 +425,7 @@ export default function SetupPage() {
                         placeholder="VCR1"
                         accept="video/*"
                         aspectRatio="16:9"
+                        allowUrlInput
                       />
                     </div>
                     <div>
@@ -435,6 +436,7 @@ export default function SetupPage() {
                         placeholder="VCR2"
                         accept="video/*"
                         aspectRatio="16:9"
+                        allowUrlInput
                       />
                     </div>
                   </div>
