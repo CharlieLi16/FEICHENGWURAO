@@ -1,17 +1,69 @@
-// In-memory event state store (for serverless, consider using Vercel KV or similar)
+// In-memory event state store with Vercel Blob persistence
 
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
+import { loadEventData, debouncedSave } from './event-persist';
 
-// Global state (works in development, for production use Vercel KV)
+// Global state
 let eventState: EventState = { ...initialEventState };
 let femaleGuests: FemaleGuest[] = [];
 let maleGuests: MaleGuest[] = [];
 let slides: SlideSlot[] = [...defaultSlideSlots];
 
+// Track if we've loaded persisted data
+let isInitialized = false;
+let initPromise: Promise<void> | null = null;
+
+// Initialize from persisted data (called once on first access)
+async function ensureInitialized(): Promise<void> {
+  if (isInitialized) return;
+  
+  if (initPromise) {
+    await initPromise;
+    return;
+  }
+  
+  initPromise = (async () => {
+    try {
+      const savedData = await loadEventData();
+      if (savedData) {
+        femaleGuests = savedData.femaleGuests || [];
+        maleGuests = savedData.maleGuests || [];
+        slides = savedData.slides || [...defaultSlideSlots];
+        console.log('[EventStore] Restored data:', {
+          femaleGuests: femaleGuests.length,
+          maleGuests: maleGuests.length,
+          slides: slides.length,
+        });
+      }
+    } catch (error) {
+      console.error('[EventStore] Failed to load persisted data:', error);
+    }
+    isInitialized = true;
+  })();
+  
+  await initPromise;
+}
+
+// Trigger debounced save
+function triggerSave(): void {
+  debouncedSave({ femaleGuests, maleGuests, slides });
+}
+
 // Subscribers for SSE
 type Subscriber = (data: EventData) => void;
 const subscribers: Set<Subscriber> = new Set();
 
+export async function getEventDataAsync(): Promise<EventData> {
+  await ensureInitialized();
+  return {
+    state: eventState,
+    femaleGuests,
+    maleGuests,
+    slides,
+  };
+}
+
+// Sync version for SSE (initialization should have happened already)
 export function getEventData(): EventData {
   return {
     state: eventState,
@@ -65,11 +117,13 @@ export function resetLights(): EventState {
 export function setFemaleGuests(guests: FemaleGuest[]): void {
   femaleGuests = guests;
   notifySubscribers();
+  triggerSave();
 }
 
 export function setMaleGuests(guests: MaleGuest[]): void {
   maleGuests = guests;
   notifySubscribers();
+  triggerSave();
 }
 
 export function getFemaleGuests(): FemaleGuest[] {
@@ -87,6 +141,7 @@ export function getSlides(): SlideSlot[] {
 export function setSlides(newSlides: SlideSlot[]): void {
   slides = newSlides;
   notifySubscribers();
+  triggerSave();
 }
 
 export function updateSlide(slideId: string, imageUrl: string | null): void {
@@ -94,6 +149,7 @@ export function updateSlide(slideId: string, imageUrl: string | null): void {
     slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
   );
   notifySubscribers();
+  triggerSave();
 }
 
 export function resetEvent(): void {
