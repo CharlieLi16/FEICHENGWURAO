@@ -76,6 +76,17 @@ export default function AdminHeader() {
         >
           🖼️ 照片集
         </Link>
+        <div className="w-px bg-gray-300 mx-2"></div>
+        <Link
+          href="/event"
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            pathname.startsWith("/event") || pathname.startsWith("/director") || pathname.startsWith("/stage") || pathname.startsWith("/guest")
+              ? "bg-pink-100 text-pink-700 font-medium"
+              : "text-pink-600 hover:bg-pink-50"
+          }`}
+        >
+          🎬 活动控制
+        </Link>
       </div>
     </div>
   );
