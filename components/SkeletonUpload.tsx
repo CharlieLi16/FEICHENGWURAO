@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { upload } from '@vercel/blob/client';
 
 interface SkeletonUploadProps {
   value?: string;
@@ -37,58 +38,40 @@ export default function SkeletonUpload({
     'auto': 'min-h-[120px]',
   };
 
-  // Handle file upload
+  // Handle file upload - uses client-side direct upload to bypass 4.5MB limit
   const uploadFile = useCallback(async (file: File) => {
     setUploading(true);
     setProgress(0);
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Generate unique filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const ext = file.name.split('.').pop() || '';
+      const filename = `upload_${timestamp}.${ext}`;
 
-      // Simulate progress (since fetch doesn't support progress natively)
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 10, 90));
-      }, 100);
+      console.log('[SkeletonUpload] Starting client-side upload:', filename, file.size);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Starting upload',data:{fileName:file.name,fileSize:file.size,fileType:file.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      // Client-side direct upload to Vercel Blob (bypasses serverless 4.5MB limit)
+      const blob = await upload(filename, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload/token',
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          setProgress(percent);
+        },
       });
 
-      clearInterval(progressInterval);
-
-      if (!response.ok) {
-        let errorMessage = '上传失败';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If JSON parsing fails, use default message
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      // Fix: API returns fileUrl, not url
-      const uploadedUrl = data.fileUrl || data.url;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Upload success',data:{fileUrl:data.fileUrl?.substring?.(0,80),url:data.url?.substring?.(0,80),uploadedUrl:uploadedUrl?.substring?.(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
-      // #endregion
-      setProgress(100);
+      console.log('[SkeletonUpload] Upload success:', blob.url);
       
       // Short delay to show 100%
       setTimeout(() => {
-        onChange(uploadedUrl);
+        onChange(blob.url);
         setUploading(false);
         setProgress(0);
       }, 300);
     } catch (err) {
+      console.error('[SkeletonUpload] Upload error:', err);
       setError(err instanceof Error ? err.message : '上传失败');
       setUploading(false);
       setProgress(0);
