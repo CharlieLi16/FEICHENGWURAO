@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     const name = formData.get("name") as string;
 
+    console.log("[Upload API] Received:", { fileName: file?.name, fileSize: file?.size, fileType: file?.type, hasToken: !!process.env.BLOB_READ_WRITE_TOKEN });
+
     if (!file) {
+      console.log("[Upload API] Error: No file provided");
       return NextResponse.json(
         { error: "No file provided" },
         { status: 400 }
@@ -19,6 +22,7 @@ export async function POST(request: NextRequest) {
     const isVideo = file.type.startsWith("video/");
     
     if (!isImage && !isVideo) {
+      console.log("[Upload API] Error: Invalid file type", file.type);
       return NextResponse.json(
         { error: "Invalid file type. Please upload an image or video." },
         { status: 400 }
@@ -28,6 +32,7 @@ export async function POST(request: NextRequest) {
     // Validate file size (max 50MB)
     const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
+      console.log("[Upload API] Error: File too large", file.size);
       return NextResponse.json(
         { error: "File size exceeds 50MB limit" },
         { status: 400 }
@@ -51,18 +56,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Vercel Blob (production)
+    console.log("[Upload API] Uploading to Vercel Blob:", uniqueFileName);
     const blob = await put(uniqueFileName, file, {
       access: "public",
     });
+    console.log("[Upload API] Upload success:", blob.url);
 
     return NextResponse.json({ 
       fileUrl: blob.url, 
       success: true 
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("[Upload API] Upload error:", error);
     return NextResponse.json(
-      { error: "Upload failed. Please try again or send materials to yl11475@nyu.edu" },
+      { error: `Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }

@@ -39,6 +39,9 @@ export default function SetupPage() {
       // Load event data
       const eventRes = await fetch('/api/event/state');
       const eventData = await eventRes.json();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'setup/page.tsx:loadData',message:'API response',data:{hasFemale:eventData.femaleGuests?.length,hasMale:eventData.maleGuests?.length,firstFemale:eventData.femaleGuests?.[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       if (eventData.femaleGuests?.length > 0) {
         setFemaleGuests(eventData.femaleGuests);
       }
@@ -66,6 +69,9 @@ export default function SetupPage() {
 
   // Initialize empty guests if needed
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'setup/page.tsx:initEffect',message:'Init effect triggered',data:{loading,femaleLen:femaleGuests.length,maleLen:maleGuests.length,willInitFemale:!loading&&femaleGuests.length===0,willInitMale:!loading&&maleGuests.length===0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     if (!loading && femaleGuests.length === 0) {
       setFemaleGuests(
         Array.from({ length: 12 }, (_, i) => ({
@@ -128,6 +134,9 @@ export default function SetupPage() {
 
   // Update guest fields
   const updateFemaleGuest = (id: number, field: keyof FemaleGuest, value: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'setup/page.tsx:updateFemaleGuest',message:'Update called',data:{id,field,value:value?.substring?.(0,50),valueType:typeof value},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     setFemaleGuests((prev) =>
       prev.map((g) => (g.id === id ? { ...g, [field]: value } : g))
     );
@@ -175,6 +184,14 @@ export default function SetupPage() {
       setSaving(false);
     }
   };
+
+  // #region agent log
+  useEffect(() => {
+    if (!loading) {
+      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'setup/page.tsx:renderState',message:'Current state after load',data:{femaleCount:femaleGuests.length,maleCount:maleGuests.length,firstFemalePhoto:femaleGuests[0]?.photo,firstFemaleName:femaleGuests[0]?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    }
+  }, [loading, femaleGuests, maleGuests]);
+  // #endregion
 
   if (loading) {
     return (

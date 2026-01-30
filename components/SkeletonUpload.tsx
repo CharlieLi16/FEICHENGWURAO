@@ -48,6 +48,10 @@ export default function SkeletonUpload({
         setProgress((prev) => Math.min(prev + 10, 90));
       }, 100);
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Starting upload',data:{fileName:file.name,fileSize:file.size,fileType:file.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -56,15 +60,24 @@ export default function SkeletonUpload({
       clearInterval(progressInterval);
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => 'unknown');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Upload failed',data:{status:response.status,statusText:response.statusText,errorBody:errorText?.substring?.(0,200)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
         throw new Error('上传失败');
       }
 
       const data = await response.json();
+      // Fix: API returns fileUrl, not url
+      const uploadedUrl = data.fileUrl || data.url;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:uploadFile',message:'Upload success',data:{fileUrl:data.fileUrl?.substring?.(0,80),url:data.url?.substring?.(0,80),uploadedUrl:uploadedUrl?.substring?.(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
+      // #endregion
       setProgress(100);
       
       // Short delay to show 100%
       setTimeout(() => {
-        onChange(data.url);
+        onChange(uploadedUrl);
         setUploading(false);
         setProgress(0);
       }, 300);
@@ -118,7 +131,16 @@ export default function SkeletonUpload({
   };
 
   // Check if value is video
-  const isVideo = value && (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov'));
+  const isVideo = value && (value.includes('.mp4') || value.includes('.webm') || value.includes('.mov') || value.includes('.MOV'));
+  
+  // Check if value is a valid URL (not placeholder text)
+  const isValidUrl = value && (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('blob:'));
+
+  // #region agent log
+  if (value) {
+    fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:render',message:'Rendering with value',data:{value:value?.substring?.(0,80),isVideo,isValidUrl},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
+  }
+  // #endregion
 
   return (
     <div className={`relative ${className}`}>
@@ -176,8 +198,18 @@ export default function SkeletonUpload({
         </div>
       )}
 
+      {/* Invalid URL Warning */}
+      {value && !uploading && !isValidUrl && (
+        <div className={`${aspectClasses[aspectRatio]} flex flex-col items-center justify-center bg-yellow-900/30 border-2 border-dashed border-yellow-500 rounded-xl p-4`}>
+          <div className="text-yellow-500 text-2xl mb-2">⚠️</div>
+          <div className="text-yellow-400 text-xs text-center">无效的URL</div>
+          <div className="text-yellow-500/70 text-xs mt-1 break-all max-h-16 overflow-hidden">{value.substring(0, 50)}...</div>
+          <button onClick={handleDelete} className="mt-2 px-3 py-1 bg-red-500/50 hover:bg-red-500 rounded text-xs">删除</button>
+        </div>
+      )}
+
       {/* Uploaded State - Preview */}
-      {value && !uploading && (
+      {value && !uploading && isValidUrl && (
         <div 
           className={`${aspectClasses[aspectRatio]} relative group rounded-xl overflow-hidden bg-gray-800`}
           onDragOver={handleDragOver}
@@ -193,6 +225,11 @@ export default function SkeletonUpload({
               loop
               onMouseEnter={(e) => e.currentTarget.play()}
               onMouseLeave={(e) => e.currentTarget.pause()}
+              onError={(e) => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:videoPreview',message:'Video load error',data:{src:value?.substring?.(0,100)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
+                // #endregion
+              }}
             />
           ) : (
             <img
@@ -200,8 +237,10 @@ export default function SkeletonUpload({
               alt={placeholder}
               className="w-full h-full object-cover"
               onError={(e) => {
-                e.currentTarget.src = '';
-                e.currentTarget.style.display = 'none';
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c88f623a-c817-4149-b1cc-ca055b074499',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SkeletonUpload.tsx:imgPreview',message:'Image load error',data:{src:value?.substring?.(0,100)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H'})}).catch(()=>{});
+                // #endregion
+                console.error('[SkeletonUpload] Image failed to load:', value);
               }}
             />
           )}
