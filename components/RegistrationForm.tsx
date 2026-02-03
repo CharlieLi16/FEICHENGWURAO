@@ -12,6 +12,7 @@ interface RegistrationFormProps {
 
 const SCHOOLS = [
   "NYU",
+  "Columbia",
   "The New School",
   "SVA",
   "Pratt",
