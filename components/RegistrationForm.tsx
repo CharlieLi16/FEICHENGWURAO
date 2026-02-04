@@ -6,6 +6,41 @@ import Image from "next/image";
 import MaleIcon from "@/components/icons/MaleIcon";
 import FemaleIcon from "@/components/icons/FemaleIcon";
 
+// Convert HEIC to JPEG (iPhone photos) - dynamically import to avoid SSR issues
+async function convertHeicToJpeg(file: File): Promise<File> {
+  // Check if file is HEIC
+  const isHeic = file.type === "image/heic" || 
+                 file.type === "image/heif" || 
+                 file.name.toLowerCase().endsWith(".heic") ||
+                 file.name.toLowerCase().endsWith(".heif");
+  
+  if (!isHeic) {
+    return file;
+  }
+
+  try {
+    // Dynamic import to avoid SSR issues (heic2any uses window)
+    const heic2any = (await import("heic2any")).default;
+    
+    const blob = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.9,
+    });
+    
+    // heic2any can return array for multi-image HEIC
+    const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+    
+    // Create new file with .jpg extension
+    const newFileName = file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg");
+    return new File([resultBlob], newFileName, { type: "image/jpeg" });
+  } catch (error) {
+    console.error("HEIC conversion failed:", error);
+    // Return original file if conversion fails
+    return file;
+  }
+}
+
 interface RegistrationFormProps {
   gender: "male" | "female";
 }
@@ -143,7 +178,16 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
       const fileUrls: string[] = [];
       
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+        let file = files[i];
+        
+        // Convert HEIC to JPEG if needed (iPhone photos)
+        if (file.type === "image/heic" || file.type === "image/heif" || 
+            file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) {
+          setErrorMessage("正在转换 iPhone 照片格式...");
+          file = await convertHeicToJpeg(file);
+          setErrorMessage("");
+        }
+        
         const fileFormData = new FormData();
         fileFormData.append("file", file);
         fileFormData.append("name", formData.legalName);
