@@ -6,6 +6,28 @@ import MaleIcon from "@/components/icons/MaleIcon";
 import FemaleIcon from "@/components/icons/FemaleIcon";
 import AdminHeader from "@/components/AdminHeader";
 
+// Fallback image component with error handling
+function SafeImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [error, setError] = useState(false);
+  
+  if (error || !src) {
+    return (
+      <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center`}>
+        <span className="text-4xl">📷</span>
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+}
+
 interface RegistrationEntry {
   index: number;
   legalName: string;
@@ -182,7 +204,7 @@ export default function GalleryPage() {
                         </div>
                       </div>
                     ) : (
-                      <img
+                      <SafeImage
                         src={firstUrl}
                         alt={entry.legalName}
                         className="w-full h-full object-cover"
@@ -275,7 +297,7 @@ export default function GalleryPage() {
                       className="w-full max-h-[60vh] object-contain"
                     />
                   ) : (
-                    <img
+                    <SafeImage
                       src={currentUrl}
                       alt={selectedEntry.legalName}
                       className="w-full max-h-[60vh] object-contain"
@@ -308,7 +330,7 @@ export default function GalleryPage() {
                             🎬
                           </div>
                         ) : (
-                          <img
+                          <SafeImage
                             src={url}
                             alt={`${index + 1}`}
                             className="w-full h-full object-cover"
