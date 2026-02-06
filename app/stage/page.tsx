@@ -248,12 +248,24 @@ export default function StagePage() {
   const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
   const { play } = useSound();
   const [time, setTime] = useState(new Date());
+  const [showRoundInfo, setShowRoundInfo] = useState(true);
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
 
   // Update clock
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Keyboard shortcut: H to toggle round info
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'h' || e.key === 'H') {
+        setShowRoundInfo(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Play sound effects when lights change
@@ -327,8 +339,8 @@ export default function StagePage() {
         </div>
       </header>
 
-      {/* Phase Title */}
-      <div className="text-center py-4 md:py-6">
+      {/* Phase Title - Press H to toggle */}
+      <div className={`text-center py-4 md:py-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 py-0 overflow-hidden'}`}>
         <div className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
           <span className="text-sm text-gray-400 mr-2">第 {state.currentRound} 轮</span>
           <span className="text-xl md:text-2xl font-bold">{phaseNames[state.phase]}</span>
