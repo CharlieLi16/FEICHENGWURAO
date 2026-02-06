@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import MaleIcon from "@/components/icons/MaleIcon";
 import FemaleIcon from "@/components/icons/FemaleIcon";
+import { upload } from "@vercel/blob/client";
 
 // Convert HEIC to JPEG (iPhone photos) - dynamically import to avoid SSR issues
 async function convertHeicToJpeg(file: File): Promise<File> {
@@ -174,7 +175,7 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
     setErrorMessage("");
 
     try {
-      // Upload all files
+      // Upload all files using client-side direct upload (bypasses 4.5MB serverless limit)
       const fileUrls: string[] = [];
       
       for (let i = 0; i < files.length; i++) {
@@ -188,22 +189,28 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
           setErrorMessage("");
         }
         
-        const fileFormData = new FormData();
-        fileFormData.append("file", file);
-        fileFormData.append("name", formData.legalName);
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: fileFormData,
-        });
-
-        if (!uploadResponse.ok) {
+        setErrorMessage(`正在上传第 ${i + 1}/${files.length} 个文件...`);
+        
+        // Create unique filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const sanitizedName = (formData.legalName || "guest").replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_");
+        const ext = file.name.split(".").pop() || "jpg";
+        const uniqueFileName = `${sanitizedName}_${timestamp}.${ext}`;
+        
+        try {
+          // Use client-side direct upload to Vercel Blob
+          const blob = await upload(uniqueFileName, file, {
+            access: "public",
+            handleUploadUrl: "/api/upload/token",
+          });
+          fileUrls.push(blob.url);
+        } catch (uploadError) {
+          console.error("Upload error:", uploadError);
           throw new Error(`文件 "${file.name}" 上传失败，请稍后重试或发送邮件到 yl11475@nyu.edu`);
         }
-
-        const uploadResult = await uploadResponse.json();
-        fileUrls.push(uploadResult.fileUrl);
       }
+      
+      setErrorMessage("");
 
       // Then submit the form data with all file URLs
       const submitData = {
