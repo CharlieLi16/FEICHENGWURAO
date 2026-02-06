@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AdminHeader from "@/components/AdminHeader";
+import { upload } from "@vercel/blob/client";
 
 export default function AdminUploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -9,6 +10,7 @@ export default function AdminUploadPage() {
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleUpload = async () => {
     if (!file) return;
@@ -16,12 +18,14 @@ export default function AdminUploadPage() {
     setUploading(true);
     setError("");
     setUploadedUrl("");
+    setProgress(0);
     
     try {
       // Convert HEIC if needed
       let uploadFile = file;
       if (file.type === "image/heic" || file.type === "image/heif" || 
           file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) {
+        setError("正在转换 iPhone 照片格式...");
         const heic2any = (await import("heic2any")).default;
         const blob = await heic2any({
           blob: file,
@@ -30,27 +34,30 @@ export default function AdminUploadPage() {
         });
         const resultBlob = Array.isArray(blob) ? blob[0] : blob;
         uploadFile = new File([resultBlob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+        setError("");
       }
       
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      formData.append("name", "admin-upload");
+      // Generate unique filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const ext = uploadFile.name.split(".").pop() || "jpg";
+      const filename = `admin-upload_${timestamp}.${ext}`;
       
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      // Use client-side direct upload (bypasses 4.5MB serverless limit)
+      const blob = await upload(filename, uploadFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload/token",
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          setProgress(percent);
+        },
       });
       
-      if (!response.ok) {
-        throw new Error("上传失败");
-      }
-      
-      const data = await response.json();
-      setUploadedUrl(data.fileUrl);
+      setUploadedUrl(blob.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "上传失败");
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
@@ -66,17 +73,17 @@ export default function AdminUploadPage() {
         <AdminHeader />
         
         <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">照片上传工具</h1>
-          <p className="text-gray-500 mb-6">上传照片获取 URL，用于替换 Google Sheets 中的链接</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">文件上传工具</h1>
+          <p className="text-gray-500 mb-6">上传图片或视频获取 URL，最大支持 500MB</p>
           
           {/* File Input */}
           <div className="mb-6">
             <label className="block mb-2 text-sm font-medium text-gray-700">
-              选择照片
+              选择文件
             </label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={(e) => {
                 setFile(e.target.files?.[0] || null);
                 setUploadedUrl("");
@@ -106,8 +113,18 @@ export default function AdminUploadPage() {
             disabled={!file || uploading}
             className="w-full py-3 rounded-lg font-medium bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {uploading ? "上传中..." : "上传照片"}
+            {uploading ? `上传中... ${progress}%` : "上传文件"}
           </button>
+          
+          {/* Progress Bar */}
+          {uploading && progress > 0 && (
+            <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-pink-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
           
           {/* Error */}
           {error && (
@@ -137,11 +154,19 @@ export default function AdminUploadPage() {
               </div>
               <div className="mt-4">
                 <p className="text-sm text-gray-600 mb-2">预览：</p>
-                <img
-                  src={uploadedUrl}
-                  alt="Uploaded"
-                  className="max-h-64 rounded-lg"
-                />
+                {uploadedUrl.match(/\.(mp4|mov|webm|avi|wmv)$/i) ? (
+                  <video
+                    src={uploadedUrl}
+                    controls
+                    className="max-h-64 rounded-lg"
+                  />
+                ) : (
+                  <img
+                    src={uploadedUrl}
+                    alt="Uploaded"
+                    className="max-h-64 rounded-lg"
+                  />
+                )}
               </div>
             </div>
           )}
@@ -150,11 +175,11 @@ export default function AdminUploadPage() {
           <div className="mt-8 pt-6 border-t">
             <h3 className="font-medium text-gray-900 mb-3">使用步骤：</h3>
             <ol className="list-decimal list-inside space-y-2 text-gray-600 text-sm">
-              <li>选择要上传的照片（支持 iPhone HEIC 格式）</li>
-              <li>点击"上传照片"</li>
+              <li>选择要上传的文件（支持图片和视频，最大 500MB）</li>
+              <li>iPhone HEIC 格式照片会自动转换为 JPEG</li>
+              <li>点击"上传文件"，等待上传完成</li>
               <li>复制生成的 URL</li>
-              <li>打开 Google Sheets，找到对应的报名行</li>
-              <li>把"照片/视频链接"那列的内容替换成新 URL</li>
+              <li>粘贴到需要使用的地方</li>
             </ol>
           </div>
         </div>
