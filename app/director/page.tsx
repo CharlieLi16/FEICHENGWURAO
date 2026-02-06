@@ -74,13 +74,7 @@ export default function DirectorPage() {
 
   // Navigate phases
   const goToPhase = async (phase: EventPhase) => {
-    // Play sound for specific phases
-    if (phase === 'male_enter') {
-      playSound('maleEnter');
-    } else if (phase === 'result') {
-      // Could add success/fail sound here based on result
-    }
-    
+    // Sound effects are manually triggered from DJ panel
     await updateState({ 
       phase, 
       message: phaseNames[phase],
@@ -105,7 +99,7 @@ export default function DirectorPage() {
 
   // Start new round with a male guest
   const startNewRound = async (maleId: number) => {
-    playSound('maleEnter'); // Play entrance sound
+    // Sound effects are manually triggered from DJ panel
     await resetLights();
     await updateState({
       currentMaleGuest: maleId,
