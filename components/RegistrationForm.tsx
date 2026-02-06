@@ -130,8 +130,8 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
       const oversizedFiles: string[] = [];
 
       Array.from(selectedFiles).forEach((file) => {
-        // Check file size (max 50MB per file)
-        if (file.size > 50 * 1024 * 1024) {
+        // Check file size (max 500MB per file)
+        if (file.size > 500 * 1024 * 1024) {
           oversizedFiles.push(file.name);
           return;
         }
@@ -148,7 +148,7 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
       });
 
       if (oversizedFiles.length > 0) {
-        alert(`以下文件超过 50MB 限制，已跳过：\n${oversizedFiles.join("\n")}`);
+        alert(`以下文件超过 500MB 限制，已跳过：\n${oversizedFiles.join("\n")}`);
       }
 
       setFiles((prev) => [...prev, ...newFiles]);
@@ -651,7 +651,7 @@ export default function RegistrationForm({ gender }: RegistrationFormProps) {
                   {files.length > 0 ? "点击添加更多文件" : "点击上传照片或视频"}
                 </p>
                 <p className="text-gray-400 text-sm mt-1">
-                  支持多选，每个文件最大 50MB
+                  支持多选，每个文件最大 500MB
                 </p>
               </div>
             </div>
