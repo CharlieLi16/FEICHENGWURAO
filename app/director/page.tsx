@@ -33,9 +33,11 @@ const soundEffects = [
   { name: 'success', label: '牵手成功', emoji: '💕', color: 'bg-green-500' },
   { name: 'fail', label: '牵手失败', emoji: '💔', color: 'bg-red-500' },
   { name: 'vcrStart', label: 'VCR开始', emoji: '🎬', color: 'bg-purple-500' },
-  { name: 'roundStart', label: '环节开始', emoji: '🎯', color: 'bg-orange-500' },
+  { name: 'lastPick', label: '权力反转', emoji: '🔄', color: 'bg-orange-500' },
   { name: 'countdown', label: '倒计时', emoji: '⏱️', color: 'bg-cyan-500' },
   { name: 'applause', label: '掌声', emoji: '👏', color: 'bg-yellow-500' },
+  { name: 'ei', label: '诶？', emoji: '❓', color: 'bg-amber-500' },
+  { name: 'uhoh', label: 'Uh Oh', emoji: '😬', color: 'bg-rose-500' },
 ] as const;
 
 export default function DirectorPage() {

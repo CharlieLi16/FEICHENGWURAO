@@ -11,9 +11,11 @@ export const SOUNDS = {
   success: '/assets/sounds/success.mp3',
   fail: '/assets/sounds/fail.mp3',
   vcrStart: '/assets/sounds/vcr-start.mp3',
-  roundStart: '/assets/sounds/round-start.mp3',
+  lastPick: '/assets/sounds/last-pick.mp3',  // 权力反转
   countdown: '/assets/sounds/countdown.mp3',
   applause: '/assets/sounds/applause.mp3',
+  ei: '/assets/sounds/ei.mp3',              // 诶？
+  uhoh: '/assets/sounds/uhoh.mp3',          // uh oh
 } as const;
 
 export type SoundName = keyof typeof SOUNDS;
