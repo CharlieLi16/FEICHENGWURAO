@@ -116,12 +116,16 @@ export function resetLights(): EventState {
 
 export function setFemaleGuests(guests: FemaleGuest[]): void {
   femaleGuests = guests;
+  // Update timestamp to trigger SSE push
+  eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
   triggerSave();
 }
 
 export function setMaleGuests(guests: MaleGuest[]): void {
   maleGuests = guests;
+  // Update timestamp to trigger SSE push
+  eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
   triggerSave();
 }
@@ -140,6 +144,8 @@ export function getSlides(): SlideSlot[] {
 
 export function setSlides(newSlides: SlideSlot[]): void {
   slides = newSlides;
+  // Update timestamp to trigger SSE push
+  eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
   triggerSave();
 }
@@ -148,6 +154,8 @@ export function updateSlide(slideId: string, imageUrl: string | null): void {
   slides = slides.map(slide => 
     slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
   );
+  // Update timestamp to trigger SSE push
+  eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
   triggerSave();
 }
