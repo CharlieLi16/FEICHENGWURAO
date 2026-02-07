@@ -22,9 +22,11 @@ export default function TestSoundsPage() {
     { name: 'success', label: '牵手成功', emoji: '💕' },
     { name: 'fail', label: '牵手失败', emoji: '💔' },
     { name: 'vcrStart', label: 'VCR开始', emoji: '🎬' },
-    { name: 'roundStart', label: '新一轮', emoji: '🔔' },
+    { name: 'lastPick', label: '权力反转', emoji: '🔄' },
     { name: 'countdown', label: '倒计时', emoji: '⏱️' },
     { name: 'applause', label: '掌声', emoji: '👏' },
+    { name: 'ei', label: '诶？', emoji: '❓' },
+    { name: 'uhoh', label: 'Uh Oh', emoji: '😬' },
   ];
 
   return (
