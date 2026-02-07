@@ -302,7 +302,12 @@ export default function DirectorPage() {
               </button>
               <button
                 onClick={() => updateState({ vcrPlaying: false })}
-                className="py-3 px-4 bg-red-600 rounded-lg hover:bg-red-500"
+                disabled={!state.vcrPlaying}
+                className={`py-3 px-4 rounded-lg transition-all ${
+                  state.vcrPlaying 
+                    ? 'bg-red-600 hover:bg-red-500 animate-pulse' 
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 ⏹️
               </button>
