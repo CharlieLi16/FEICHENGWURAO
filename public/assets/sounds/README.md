@@ -122,14 +122,23 @@
 |------|------|
 | `male-enter.mp3` | ✅ 已上传 |
 | `light-off.mp3` | ✅ 已上传 |
-| `burst.mp3` | 🔜 待上传 |
-| `success.mp3` | 🔜 待上传 |
-| `fail.mp3` | 🔜 待上传 |
+| `burst.mp3` | ✅ 已上传 |
+| `success.mp3` | ✅ 已上传 |
+| `fail.mp3` | ✅ 已上传 |
 | `vcr-start.mp3` | 🔜 待上传 |
 | `round-start.mp3` | 🔜 可选 |
 | `countdown.mp3` | 🔜 可选 |
 | `applause.mp3` | 🔜 可选 |
 | `light-on.mp3` | 🔜 可选 |
+
+### 📦 额外音效文件（未映射）
+
+| 文件 | 说明 |
+|------|------|
+| `ei.mp3` | 可用于自定义音效 |
+| `uhoh.mp3` | 可用于自定义音效 |
+
+> 💡 这些额外音效可以手动添加到 `hooks/useSound.ts` 的 `SOUNDS` 列表中使用。
 
 ---
 
