@@ -98,11 +98,24 @@ function MaleGuestCard({
 }
 
 // VCR Video Player
-function VCRPlayer({ url, playing }: { url?: string; playing: boolean }) {
+function VCRPlayer({ url, playing, onClose }: { url?: string; playing: boolean; onClose: () => void }) {
   if (!url || !playing) return null;
+  
+  const handleVideoEnd = () => {
+    onClose();
+  };
   
   return (
     <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-50">
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-12 h-12 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-2xl transition-all shadow-lg"
+        title="关闭 VCR"
+      >
+        ✕
+      </button>
+      
       <div className="w-full max-w-4xl aspect-video">
         {url.includes('youtube') || url.includes('youtu.be') ? (
           <iframe
@@ -111,12 +124,20 @@ function VCRPlayer({ url, playing }: { url?: string; playing: boolean }) {
             allow="autoplay; encrypted-media"
             allowFullScreen
           />
+        ) : url.includes('bilibili') ? (
+          <iframe
+            src={url}
+            className="w-full h-full rounded-lg"
+            allow="autoplay"
+            allowFullScreen
+          />
         ) : (
           <video
             src={url}
             className="w-full h-full rounded-lg"
             autoPlay
             controls
+            onEnded={handleVideoEnd}
           />
         )}
       </div>
@@ -245,7 +266,7 @@ function SlideOverlay({ imageUrl, slideName }: { imageUrl: string; slideName: st
 }
 
 export default function StagePage() {
-  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
+  const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
   const { play } = useSound();
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
@@ -311,7 +332,11 @@ export default function StagePage() {
       )}
 
       {/* VCR Overlay */}
-      <VCRPlayer url={vcrUrl} playing={state.vcrPlaying} />
+      <VCRPlayer 
+        url={vcrUrl} 
+        playing={state.vcrPlaying} 
+        onClose={() => updateState({ vcrPlaying: false })}
+      />
 
       {/* Fullscreen Female Introduction (PPT-style) */}
       {currentFemaleForIntro && (
