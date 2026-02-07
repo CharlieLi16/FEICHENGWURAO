@@ -52,7 +52,7 @@ export default function DirectorPage() {
     showSlide,
     hideSlide,
   } = useEventStream();
-  const { play, setMasterVolume, getMasterVolume } = useSound();
+  const { play, setMasterVolume, getMasterVolume, stopAll } = useSound();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
   const [lastPlayed, setLastPlayed] = useState<string | null>(null);
@@ -422,6 +422,14 @@ export default function DirectorPage() {
                 </button>
               ))}
             </div>
+            
+            {/* Stop All Button */}
+            <button
+              onClick={stopAll}
+              className="w-full mt-3 py-2 bg-red-600/80 hover:bg-red-500 rounded-lg transition-all text-sm font-medium"
+            >
+              ⏹️ 停止所有音效
+            </button>
           </div>
 
           {/* Slide Control Panel */}

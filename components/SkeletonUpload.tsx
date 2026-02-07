@@ -152,7 +152,7 @@ export default function SkeletonUpload({
       setUrlInput('');
       setShowUrlInput(false);
     } else {
-      setError('请输入有效的URL (以 http:// 或 https:// 开头)');
+      setError('请输入有效的URL（以 http:// 或 https:// 开头）');
     }
   };
 

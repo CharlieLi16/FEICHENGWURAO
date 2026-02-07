@@ -71,5 +71,61 @@ export function useSound() {
 
   const getMasterVolume = useCallback(() => currentVolume.current, []);
 
-  return { play, playUrl, setMasterVolume, getMasterVolume, SOUNDS };
+  // Stop a specific sound
+  const stop = useCallback((soundName: SoundName) => {
+    const path = SOUNDS[soundName];
+    const audio = audioRefs.current.get(path);
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, []);
+
+  // Stop all sounds
+  const stopAll = useCallback(() => {
+    audioRefs.current.forEach((audio) => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+  }, []);
+
+  // Pause a specific sound (can resume later)
+  const pause = useCallback((soundName: SoundName) => {
+    const path = SOUNDS[soundName];
+    const audio = audioRefs.current.get(path);
+    if (audio) {
+      audio.pause();
+    }
+  }, []);
+
+  // Resume a paused sound
+  const resume = useCallback((soundName: SoundName) => {
+    const path = SOUNDS[soundName];
+    const audio = audioRefs.current.get(path);
+    if (audio) {
+      audio.play().catch((e) => {
+        console.log(`Cannot resume sound: ${soundName}`, e);
+      });
+    }
+  }, []);
+
+  // Check if a sound is currently playing
+  const isPlaying = useCallback((soundName: SoundName) => {
+    const path = SOUNDS[soundName];
+    const audio = audioRefs.current.get(path);
+    return audio ? !audio.paused && !audio.ended : false;
+  }, []);
+
+  return { 
+    play, 
+    playUrl, 
+    setMasterVolume, 
+    getMasterVolume, 
+    stop,
+    stopAll,
+    pause,
+    resume,
+    isPlaying,
+    SOUNDS 
+  };
 }
