@@ -255,11 +255,11 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
 // Fullscreen Slide Display
 function SlideOverlay({ imageUrl, slideName }: { imageUrl: string; slideName: string }) {
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center">
+    <div className="fixed inset-0 z-[100]">
       <img
         src={imageUrl}
         alt={slideName}
-        className="max-w-full max-h-full w-auto h-auto object-contain"
+        className="w-full h-full object-cover"
       />
     </div>
   );
