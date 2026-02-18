@@ -367,16 +367,9 @@ export default function StagePage() {
         <FemaleGuestFullscreen guest={currentFemaleForIntro} />
       )}
 
-      {/* Header */}
-      <header className="relative z-10 p-4 md:p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">
-              纽约非诚勿扰
-            </h1>
-            <p className="text-gray-400 text-sm">NYU Tandon CSSA 2026</p>
-          </div>
-          
+      {/* Header - Time display (toggles with H key) */}
+      <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-end">
           <div className="text-right">
             <div className="text-3xl md:text-5xl font-mono font-bold text-pink-400">
               {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
