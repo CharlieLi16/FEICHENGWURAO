@@ -674,6 +674,27 @@ export default function DirectorPage() {
                 清除背景
               </button>
             )}
+            
+            {/* Background Blur Slider */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-400">背景虚化</span>
+                <span className="text-sm font-mono text-purple-400">{state.backgroundBlur || 0}px</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="20"
+                step="1"
+                value={state.backgroundBlur || 0}
+                onChange={(e) => updateState({ backgroundBlur: parseInt(e.target.value) })}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>清晰</span>
+                <span>模糊</span>
+              </div>
+            </div>
           </div>
 
           {/* Guest Control Links */}

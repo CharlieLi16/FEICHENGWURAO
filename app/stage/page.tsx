@@ -253,12 +253,13 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
 }
 
 // Fullscreen Slide Display
-function SlideOverlay({ imageUrl, slideName }: { imageUrl: string; slideName: string }) {
+function SlideOverlay({ imageUrl, slideName, blur = 0 }: { imageUrl: string; slideName: string; blur?: number }) {
   return (
     <div className="fixed inset-0 z-[100]">
       <img
         src={imageUrl}
         alt={slideName}
+        style={{ filter: blur > 0 ? `blur(${blur}px)` : undefined }}
         className="w-full h-full object-cover"
       />
     </div>
@@ -325,6 +326,7 @@ export default function StagePage() {
   const currentSlide = state.currentSlide ? slides.find(s => s.id === state.currentSlide) : null;
 
   // Background style - custom image or fallback gradient
+  const blurValue = state.backgroundBlur || 0;
   const backgroundStyle = state.stageBackground
     ? {
         backgroundImage: `url(${state.stageBackground})`,
@@ -334,18 +336,23 @@ export default function StagePage() {
     : {};
 
   return (
-    <div 
-      className="min-h-screen text-white overflow-hidden"
-      style={{
-        background: state.stageBackground 
-          ? undefined 
-          : 'linear-gradient(to bottom right, #111827, #581c87, #831843)',
-        ...backgroundStyle,
-      }}
-    >
+    <div className="min-h-screen text-white overflow-hidden relative">
+      {/* Background Layer (with blur) */}
+      <div 
+        className="fixed inset-0 -z-10"
+        style={{
+          background: state.stageBackground 
+            ? undefined 
+            : 'linear-gradient(to bottom right, #111827, #581c87, #831843)',
+          ...backgroundStyle,
+          filter: blurValue > 0 ? `blur(${blurValue}px)` : undefined,
+          transform: blurValue > 0 ? 'scale(1.1)' : undefined, // Prevent blur edge artifacts
+        }}
+      />
+
       {/* Slide Overlay - highest priority, displays over everything */}
       {currentSlide?.imageUrl && (
-        <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} />
+        <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} blur={blurValue} />
       )}
 
       {/* VCR Overlay */}

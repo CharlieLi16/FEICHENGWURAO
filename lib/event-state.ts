@@ -96,6 +96,7 @@ export interface EventState {
   message: string;                  // Current phase message/title
   currentSlide: string | null;      // Current slide ID being shown (fullscreen)
   stageBackground?: string;         // Custom stage background image URL
+  backgroundBlur: number;           // Background blur level (0-20px)
   lastUpdated: number;              // Timestamp
 }
 
@@ -124,6 +125,7 @@ export const initialEventState: EventState = {
   vcrType: null,
   message: '等待活动开始...',
   currentSlide: null,
+  backgroundBlur: 0,
   lastUpdated: Date.now(),
 };
 
