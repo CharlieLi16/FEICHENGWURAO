@@ -20,7 +20,6 @@ interface RegistrationEntry {
 export default function SetupPage() {
   const [femaleGuests, setFemaleGuests] = useState<FemaleGuest[]>([]);
   const [maleGuests, setMaleGuests] = useState<MaleGuest[]>([]);
-  const [stageBackground, setStageBackground] = useState<string>('');
   const [registrations, setRegistrations] = useState<{ male: RegistrationEntry[]; female: RegistrationEntry[] }>({
     male: [],
     female: [],
@@ -48,9 +47,6 @@ export default function SetupPage() {
       }
       if (eventData.maleGuests?.length > 0) {
         setMaleGuests(eventData.maleGuests);
-      }
-      if (eventData.state?.stageBackground) {
-        setStageBackground(eventData.state.stageBackground);
       }
 
       // Load registrations
@@ -180,11 +176,6 @@ export default function SetupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'setMaleGuests', guests: maleGuests }),
       });
-      await fetch('/api/event/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'setStageBackground', url: stageBackground }),
-      });
       setMessage('✅ 保存成功！');
     } catch (e) {
       setMessage('❌ 保存失败');
@@ -237,31 +228,6 @@ export default function SetupPage() {
           {message}
         </div>
       )}
-
-      {/* Stage Background - Skeleton Slot */}
-      <section className="mb-8">
-        <h2 className="text-xl font-bold mb-4 text-purple-400">🎨 舞台背景</h2>
-        <div className="bg-gray-800 rounded-xl p-4 max-w-md">
-          <p className="text-sm text-gray-400 mb-3">
-            上传自定义背景图片，替换默认渐变背景（建议 16:9 比例）
-          </p>
-          <SkeletonUpload
-            value={stageBackground}
-            onChange={(url) => setStageBackground(url || '')}
-            placeholder="舞台背景图片"
-            accept="image/*"
-            aspectRatio="16:9"
-          />
-          {stageBackground && (
-            <button
-              onClick={() => setStageBackground('')}
-              className="mt-2 text-sm text-red-400 hover:text-red-300"
-            >
-              清除背景（恢复默认渐变）
-            </button>
-          )}
-        </div>
-      </section>
 
       {/* Female Guests */}
       <section className="mb-8">

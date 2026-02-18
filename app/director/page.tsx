@@ -4,6 +4,7 @@ import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
 import { EventPhase, phaseNames, lightColors, SlideSlot } from '@/lib/event-state';
 import Link from 'next/link';
+import SkeletonUpload from '@/components/SkeletonUpload';
 import { useState } from 'react';
 
 // Phase flow for the event
@@ -651,6 +652,28 @@ export default function DirectorPage() {
                 ⚙️ 嘉宾数据设置
               </Link>
             </div>
+          </div>
+
+          {/* Stage Background */}
+          <div className="bg-gray-800 rounded-xl p-4">
+            <h2 className="text-lg font-semibold mb-3">🎨 舞台背景</h2>
+            <SkeletonUpload
+              value={state.stageBackground}
+              onChange={async (url) => {
+                await updateState({ stageBackground: url || undefined });
+              }}
+              placeholder="背景图片"
+              accept="image/*"
+              aspectRatio="16:9"
+            />
+            {state.stageBackground && (
+              <button
+                onClick={() => updateState({ stageBackground: undefined })}
+                className="mt-2 text-xs text-red-400 hover:text-red-300"
+              >
+                清除背景
+              </button>
+            )}
           </div>
 
           {/* Guest Control Links */}
