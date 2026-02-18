@@ -324,8 +324,25 @@ export default function StagePage() {
   // Get current slide for display
   const currentSlide = state.currentSlide ? slides.find(s => s.id === state.currentSlide) : null;
 
+  // Background style - custom image or fallback gradient
+  const backgroundStyle = state.stageBackground
+    ? {
+        backgroundImage: `url(${state.stageBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : {};
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 text-white overflow-hidden">
+    <div 
+      className="min-h-screen text-white overflow-hidden"
+      style={{
+        background: state.stageBackground 
+          ? undefined 
+          : 'linear-gradient(to bottom right, #111827, #581c87, #831843)',
+        ...backgroundStyle,
+      }}
+    >
       {/* Slide Overlay - highest priority, displays over everything */}
       {currentSlide?.imageUrl && (
         <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} />

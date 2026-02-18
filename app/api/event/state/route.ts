@@ -67,6 +67,10 @@ export async function POST(request: NextRequest) {
         const stateAfterHide = updateEventState({ currentSlide: null });
         return NextResponse.json({ success: true, state: stateAfterHide });
 
+      case 'setStageBackground':
+        const stateAfterBg = updateEventState({ stageBackground: params.url || undefined });
+        return NextResponse.json({ success: true, state: stateAfterBg });
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }

@@ -95,6 +95,7 @@ export interface EventState {
   vcrType: 'vcr1' | 'vcr2' | null;
   message: string;                  // Current phase message/title
   currentSlide: string | null;      // Current slide ID being shown (fullscreen)
+  stageBackground?: string;         // Custom stage background image URL
   lastUpdated: number;              // Timestamp
 }
 
