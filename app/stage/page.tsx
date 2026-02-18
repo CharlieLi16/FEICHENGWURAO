@@ -35,7 +35,7 @@ function GuestLight({
       
       {/* Main light circle */}
       <div 
-        className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg transition-all duration-300 ${isBurst ? 'animate-bounce' : ''}`}
+        className={`relative w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg transition-all duration-300 ${isBurst ? 'animate-bounce' : ''}`}
         style={{ 
           backgroundColor: color,
           boxShadow: isActive ? `0 0 30px ${color}` : 'none',
@@ -50,6 +50,11 @@ function GuestLight({
         ) : (
           guestId
         )}
+        
+        {/* Heart indicator */}
+        <div className="absolute -bottom-1 -right-1 text-lg drop-shadow-lg">
+          {isActive ? '❤️' : '💔'}
+        </div>
       </div>
       
       {/* Name label */}
@@ -408,7 +413,7 @@ export default function StagePage() {
         {/* Female Guests Lights - Two rows of 6 */}
         <div className="max-w-6xl mx-auto mb-8">
           {/* Top row: 1-6 */}
-          <div className="grid grid-cols-6 gap-2 md:gap-4 mb-6 md:mb-8">
+          <div className="grid grid-cols-6 gap-4 md:gap-6 mb-6 md:mb-8">
             {[1, 2, 3, 4, 5, 6].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
               return (
@@ -424,7 +429,7 @@ export default function StagePage() {
           </div>
           
           {/* Bottom row: 7-12 */}
-          <div className="grid grid-cols-6 gap-2 md:gap-4">
+          <div className="grid grid-cols-6 gap-4 md:gap-6">
             {[7, 8, 9, 10, 11, 12].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
               return (
