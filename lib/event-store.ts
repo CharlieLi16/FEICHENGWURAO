@@ -29,10 +29,19 @@ async function ensureInitialized(): Promise<void> {
         femaleGuests = savedData.femaleGuests || [];
         maleGuests = savedData.maleGuests || [];
         slides = savedData.slides || [...defaultSlideSlots];
+        // Restore stage background settings
+        if (savedData.stageBackground) {
+          eventState.stageBackground = savedData.stageBackground;
+        }
+        if (savedData.backgroundBlur !== undefined) {
+          eventState.backgroundBlur = savedData.backgroundBlur;
+        }
         console.log('[EventStore] Restored data:', {
           femaleGuests: femaleGuests.length,
           maleGuests: maleGuests.length,
           slides: slides.length,
+          stageBackground: !!savedData.stageBackground,
+          backgroundBlur: savedData.backgroundBlur,
         });
       }
     } catch (error) {
@@ -46,7 +55,13 @@ async function ensureInitialized(): Promise<void> {
 
 // Trigger debounced save
 function triggerSave(): void {
-  debouncedSave({ femaleGuests, maleGuests, slides });
+  debouncedSave({ 
+    femaleGuests, 
+    maleGuests, 
+    slides,
+    stageBackground: eventState.stageBackground,
+    backgroundBlur: eventState.backgroundBlur,
+  });
 }
 
 // Subscribers for SSE
@@ -84,6 +99,10 @@ export function updateEventState(updates: Partial<EventState>): EventState {
     lastUpdated: Date.now(),
   };
   notifySubscribers();
+  // Persist if background settings changed
+  if ('stageBackground' in updates || 'backgroundBlur' in updates) {
+    triggerSave();
+  }
   return eventState;
 }
 

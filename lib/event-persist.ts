@@ -10,6 +10,8 @@ interface PersistedData {
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
   slides: SlideSlot[];
+  stageBackground?: string;
+  backgroundBlur?: number;
   savedAt: number;
 }
 
@@ -18,6 +20,8 @@ export async function saveEventData(data: {
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
   slides: SlideSlot[];
+  stageBackground?: string;
+  backgroundBlur?: number;
 }): Promise<void> {
   try {
     const persistedData: PersistedData = {
