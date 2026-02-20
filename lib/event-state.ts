@@ -29,9 +29,21 @@ export interface FemaleGuest {
   school?: string;
   major?: string;
   zodiac?: string;      // 星座
-  photo?: string;
+  photo?: string;       // Legacy single photo (backward compat)
+  photos: string[];     // Multiple photos array
   tags: string[];       // 3 tags
   introduction?: string;
+}
+
+// Helper to get photos from guest (handles backward compatibility)
+export function getGuestPhotos(guest: FemaleGuest): string[] {
+  if (guest.photos && guest.photos.length > 0) {
+    return guest.photos.filter(url => url && url.trim());
+  }
+  if (guest.photo) {
+    return [guest.photo];
+  }
+  return [];
 }
 
 export interface MaleGuest {

@@ -77,6 +77,7 @@ export default function SetupPage() {
         Array.from({ length: 12 }, (_, i) => ({
           id: i + 1,
           name: '',
+          photos: [],
           tags: ['', '', ''],
         }))
       );
@@ -104,7 +105,8 @@ export default function SetupPage() {
               age: reg.age,
               school: reg.school,
               major: reg.major,
-              photo: urls[0] || '',
+              photos: urls,           // All photos
+              photo: urls[0] || '',   // First photo for backward compat
               introduction: reg.introduction,
             }
           : g

@@ -2,7 +2,7 @@
 
 import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
-import { lightColors, phaseNames, LightStatus, FemaleGuest } from '@/lib/event-state';
+import { lightColors, phaseNames, LightStatus, FemaleGuest, getGuestPhotos } from '@/lib/event-state';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 
@@ -150,109 +150,166 @@ function VCRPlayer({ url, playing, onClose }: { url?: string; playing: boolean; 
   );
 }
 
-// Fullscreen Female Guest Profile (PPT-style)
+// Fullscreen Female Guest Profile (PPT-style matching template)
 function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
+  const photos = getGuestPhotos(guest);
+  const mainPhoto = photos[0];
+  const sidePhotos = photos.slice(1, 3); // Up to 2 additional photos
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Pink gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-300 via-pink-200 to-white" />
+      {/* Background - Pink/Coral gradient with decorative border */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50" />
       
-      {/* Decorative border */}
-      <div className="absolute inset-4 md:inset-8 border-4 border-pink-400/50 rounded-3xl" />
+      {/* Decorative pink border frame */}
+      <div className="absolute inset-3 md:inset-6 border-[6px] border-pink-400/60 rounded-2xl" />
       
-      {/* Content */}
-      <div className="relative h-full flex flex-col md:flex-row items-center justify-center p-8 md:p-16">
-        {/* Left side - Info */}
-        <div className="flex-1 flex flex-col justify-center md:pr-8 text-center md:text-left mb-8 md:mb-0">
-          {/* Name */}
-          <h1 className="text-5xl md:text-7xl font-bold text-pink-600 mb-6 font-serif">
-            {guest.nickname || guest.name}
-          </h1>
-          
-          {/* Basic info */}
-          <div className="text-2xl md:text-3xl text-pink-500 mb-4 space-y-2">
-            <p className="font-medium">
-              {guest.age && `${guest.age}岁`}
-              {guest.zodiac && ` ${guest.zodiac}`}
-            </p>
-            <p>{guest.school}</p>
-            {guest.major && (
-              <p className="text-xl md:text-2xl text-pink-400">
-                Major: {guest.major}
-              </p>
-            )}
-          </div>
-          
-          {/* Introduction */}
-          {guest.introduction && (
-            <div className="mt-6 p-4 bg-white/50 rounded-2xl">
-              <p className="text-xl md:text-2xl text-pink-600 leading-relaxed">
-                {guest.introduction}
-              </p>
-            </div>
-          )}
-        </div>
+      {/* Corner decorations - ribbon style */}
+      <div className="absolute top-0 left-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60" 
+           style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%, 0 100%)' }} />
+      <div className="absolute top-0 right-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60"
+           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 100%)' }} />
+      
+      {/* Main content layout */}
+      <div className="relative h-full flex p-6 md:p-10">
         
-        {/* Right side - Photo */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {/* Love letter decoration */}
-          <div className="absolute top-8 right-1/3 md:right-1/4 text-6xl md:text-8xl animate-bounce">
-            💌
-          </div>
-          
-          {/* Photo card */}
-          <div className="relative">
-            {/* Photo container with shadow */}
-            <div className="relative bg-white rounded-3xl p-3 shadow-2xl transform rotate-2 hover:rotate-0 transition-transform">
-              {guest.photo ? (
-                <img
-                  src={guest.photo}
-                  alt={guest.name}
-                  className="w-64 h-80 md:w-80 md:h-96 object-cover rounded-2xl"
-                />
-              ) : (
-                <div className="w-64 h-80 md:w-80 md:h-96 bg-gradient-to-br from-pink-200 to-pink-300 rounded-2xl flex items-center justify-center">
-                  <span className="text-8xl">👩</span>
-                </div>
-              )}
-              
-              {/* Heart decoration on photo */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg">
-                  💗
-                </div>
+        {/* LEFT SIDE - Main Photo with frame */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center w-[40%]">
+          {/* Photo frame - tilted polaroid style */}
+          <div className="relative transform -rotate-2 hover:rotate-0 transition-transform duration-300">
+            {/* White frame border */}
+            <div className="bg-white p-3 md:p-4 rounded-lg shadow-2xl">
+              {/* Pink inner border */}
+              <div className="border-4 border-pink-300 rounded overflow-hidden">
+                {mainPhoto ? (
+                  <img
+                    src={mainPhoto}
+                    alt={guest.name}
+                    className="w-56 h-72 md:w-72 md:h-96 object-cover"
+                  />
+                ) : (
+                  <div className="w-56 h-72 md:w-72 md:h-96 bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center">
+                    <span className="text-8xl">👩</span>
+                  </div>
+                )}
               </div>
             </div>
             
-            {/* Guest number badge */}
-            <div className="mt-6 text-center">
-              <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-2xl md:text-3xl font-bold px-8 py-3 rounded-full shadow-lg">
-                {guest.id}号女嘉宾
-              </span>
+            {/* Decorative ribbon/tape on corner */}
+            <div className="absolute -top-3 -right-3 w-16 h-8 bg-gradient-to-r from-red-300 to-red-400 transform rotate-12 opacity-80"
+                 style={{ 
+                   backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)'
+                 }} />
+          </div>
+          
+          {/* Guest number badge */}
+          <div className="mt-4 md:mt-6">
+            <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xl md:text-2xl font-bold px-6 md:px-8 py-2 md:py-3 rounded-lg shadow-lg transform -rotate-1">
+              {guest.id}号女嘉宾
+            </span>
+          </div>
+        </div>
+        
+        {/* RIGHT SIDE - Info section */}
+        <div className="flex-1 flex flex-col pl-4 md:pl-8">
+          
+          {/* Top row: Name frame + Side photos */}
+          <div className="flex items-start justify-between mb-4 md:mb-6">
+            {/* Name in decorative frame */}
+            <div className="relative">
+              {/* Ornate frame border */}
+              <div className="border-2 border-rose-600 rounded-lg px-6 md:px-10 py-2 md:py-3 bg-white/50"
+                   style={{
+                     borderStyle: 'double',
+                     borderWidth: '4px',
+                   }}>
+                <h1 className="text-3xl md:text-5xl font-bold text-rose-700 font-serif tracking-wide">
+                  {guest.nickname || guest.name}
+                </h1>
+              </div>
+              {/* Small decorative dots */}
+              <div className="absolute -top-1 -left-1 w-2 h-2 bg-rose-500 rounded-full" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
+              <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-rose-500 rounded-full" />
+              <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
+            </div>
+            
+            {/* Side circular photos */}
+            <div className="flex gap-2 md:gap-3">
+              {sidePhotos.map((photo, index) => (
+                <div key={index} className="relative">
+                  <div className="w-16 h-16 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-white shadow-lg">
+                    <img src={photo} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  {/* Decorative ribbon */}
+                  <div className="absolute -top-2 -right-2 w-6 h-4 bg-gradient-to-r from-red-300 to-red-400 transform rotate-45 opacity-80"
+                       style={{ 
+                         backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.3) 2px, rgba(255,255,255,0.3) 4px)'
+                       }} />
+                </div>
+              ))}
+              {/* Placeholder if no side photos */}
+              {sidePhotos.length === 0 && (
+                <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-pink-200 border-4 border-white shadow-lg flex items-center justify-center text-2xl">
+                  💕
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Introduction box */}
+          <div className="flex-1 flex flex-col">
+            <div className="bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl p-4 md:p-6 shadow-inner flex-1 max-h-[50vh] overflow-auto">
+              <p className="text-base md:text-xl text-rose-800 leading-relaxed">
+                {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
+              </p>
+              {/* Ellipsis decoration */}
+              <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
+            </div>
+            
+            {/* Tags row */}
+            <div className="flex justify-center gap-3 md:gap-4 mt-4 md:mt-6">
+              {guest.tags.filter(t => t).slice(0, 3).map((tag, index) => (
+                <div 
+                  key={index}
+                  className="px-4 md:px-8 py-2 md:py-3 bg-pink-100 border-2 border-pink-300 rounded-xl text-rose-700 font-medium text-sm md:text-base shadow-md hover:bg-pink-200 transition-colors"
+                >
+                  {tag}
+                </div>
+              ))}
+              {/* Fill empty tag slots */}
+              {guest.tags.filter(t => t).length < 3 && Array.from({ length: 3 - guest.tags.filter(t => t).length }).map((_, i) => (
+                <div 
+                  key={`empty-${i}`}
+                  className="px-4 md:px-8 py-2 md:py-3 bg-pink-50 border-2 border-pink-200 rounded-xl text-pink-300 text-sm md:text-base"
+                >
+                  {guest.school || guest.major || '标签'}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
       
-      {/* Logo */}
-      <div className="absolute bottom-6 right-8 flex items-center gap-3">
+      {/* Logo in bottom right */}
+      <div className="absolute bottom-4 right-6 flex items-center gap-2 opacity-80">
         <Image
           src="/assets/images/tandon-cssa.png"
           alt="Tandon CSSA"
-          width={60}
-          height={60}
+          width={48}
+          height={48}
           className="rounded-lg"
         />
-        <div className="text-pink-600 font-bold">
-          <div className="text-lg">TANDON CSSA</div>
-          <div className="text-xs text-pink-400">中国学生学者联合会</div>
+        <div className="text-rose-600 font-bold">
+          <div className="text-sm">TANDON CSSA</div>
+          <div className="text-xs text-rose-400">中国学生学者联合会</div>
         </div>
       </div>
       
-      {/* Floating hearts decoration */}
-      <div className="absolute top-1/4 left-8 text-4xl animate-pulse opacity-50">💕</div>
-      <div className="absolute bottom-1/3 left-16 text-3xl animate-pulse opacity-40" style={{ animationDelay: '0.5s' }}>💗</div>
-      <div className="absolute top-1/3 right-8 text-5xl animate-pulse opacity-30" style={{ animationDelay: '1s' }}>💖</div>
+      {/* Floating heart decorations */}
+      <div className="absolute top-12 left-6 text-3xl animate-pulse opacity-40">💕</div>
+      <div className="absolute bottom-1/4 left-10 text-2xl animate-pulse opacity-30" style={{ animationDelay: '0.5s' }}>💗</div>
+      <div className="absolute top-1/4 right-6 text-4xl animate-pulse opacity-30" style={{ animationDelay: '1s' }}>💖</div>
     </div>
   );
 }
@@ -416,13 +473,14 @@ export default function StagePage() {
           <div className="grid grid-cols-6 gap-4 md:gap-6 mb-6 md:mb-8">
             {[1, 2, 3, 4, 5, 6].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
+              const photos = guest ? getGuestPhotos(guest) : [];
               return (
                 <GuestLight
                   key={id}
                   guestId={id}
                   status={state.lights[id] || 'on'}
                   name={guest?.nickname || guest?.name}
-                  photo={guest?.photo}
+                  photo={photos[0]}
                 />
               );
             })}
@@ -432,13 +490,14 @@ export default function StagePage() {
           <div className="grid grid-cols-6 gap-4 md:gap-6">
             {[7, 8, 9, 10, 11, 12].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
+              const photos = guest ? getGuestPhotos(guest) : [];
               return (
                 <GuestLight
                   key={id}
                   guestId={id}
                   status={state.lights[id] || 'on'}
                   name={guest?.nickname || guest?.name}
-                  photo={guest?.photo}
+                  photo={photos[0]}
                 />
               );
             })}
@@ -463,11 +522,12 @@ export default function StagePage() {
               {(() => {
                 const guest = femaleGuests.find(g => g.id === state.showingProfile);
                 if (!guest) return null;
+                const photos = getGuestPhotos(guest);
                 return (
                   <>
                     <div className="text-center mb-6">
-                      {guest.photo ? (
-                        <img src={guest.photo} alt={guest.name} className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-pink-400" />
+                      {photos[0] ? (
+                        <img src={photos[0]} alt={guest.name} className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-pink-400" />
                       ) : (
                         <div className="w-32 h-32 rounded-full mx-auto bg-pink-500 flex items-center justify-center text-5xl">
                           {state.showingProfile}
