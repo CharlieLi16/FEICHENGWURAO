@@ -3,6 +3,7 @@
 import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
 import { lightColors, phaseNames, LightStatus, FemaleGuest, getGuestPhotos } from '@/lib/event-state';
+import { ElementConfig, TemplateConfig, defaultTemplateConfig } from '@/lib/template-config';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 
@@ -150,154 +151,229 @@ function VCRPlayer({ url, playing, onClose }: { url?: string; playing: boolean; 
   );
 }
 
-// Fullscreen Female Guest Profile (PPT-style matching template)
-function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
+// Template element renderer
+function TemplateElement({ 
+  element, 
+  children 
+}: { 
+  element: ElementConfig; 
+  children?: React.ReactNode;
+}) {
+  if (!element.visible) return null;
+
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: `${element.x}%`,
+    top: `${element.y}%`,
+    width: `${element.width}%`,
+    height: `${element.height}%`,
+    transform: `rotate(${element.rotation}deg)`,
+    zIndex: element.zIndex,
+  };
+
+  return (
+    <div style={style}>
+      {element.type === 'image' && element.imageUrl && (
+        <img
+          src={element.imageUrl}
+          alt=""
+          className="w-full h-full object-contain"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
+// Fullscreen Female Guest Profile (Config-based template)
+function FemaleGuestFullscreen({ guest, templateConfig }: { guest: FemaleGuest; templateConfig: TemplateConfig }) {
   const photos = getGuestPhotos(guest);
   const mainPhoto = photos[0];
-  const sidePhotos = photos.slice(1, 3); // Up to 2 additional photos
+  const sidePhotos = photos.slice(1, 3);
+
+  // Helper to get element config by ID
+  const getElement = (id: string): ElementConfig | undefined => 
+    templateConfig.elements.find(el => el.id === id);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Background - Pink/Coral gradient with decorative border */}
+      {/* Background gradient (fallback) */}
       <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50" />
-      
-      {/* Decorative pink border frame */}
-      <div className="absolute inset-3 md:inset-6 border-[6px] border-pink-400/60 rounded-2xl" />
-      
-      {/* Corner decorations - ribbon style */}
-      <div className="absolute top-0 left-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60" 
-           style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%, 0 100%)' }} />
-      <div className="absolute top-0 right-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60"
-           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 100%)' }} />
-      
-      {/* Main content layout */}
-      <div className="relative h-full flex p-6 md:p-10">
-        
-        {/* LEFT SIDE - Main Photo with frame */}
-        <div className="flex-shrink-0 flex flex-col items-center justify-center w-[40%]">
-          {/* Photo frame - custom template or fallback */}
-          <div className="relative transform -rotate-2 hover:rotate-0 transition-transform duration-300">
-            {/* Custom photo frame image */}
-            <div className="relative">
-              <img 
-                src="/assets/images/template/photo-frame.png" 
-                alt="" 
-                className="w-72 h-auto md:w-96 drop-shadow-2xl"
-              />
-              {/* Photo positioned inside the frame */}
-              <div className="absolute inset-0 flex items-center justify-center p-6 md:p-8">
-                {mainPhoto ? (
-                  <img
-                    src={mainPhoto}
-                    alt={guest.name}
-                    className="w-full h-full object-cover rounded"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center rounded">
-                    <span className="text-8xl">👩</span>
-                  </div>
-                )}
+
+      {/* Render template image elements */}
+      {templateConfig.elements
+        .filter(el => el.type === 'image' && el.visible)
+        .sort((a, b) => a.zIndex - b.zIndex)
+        .map(element => (
+          <TemplateElement key={element.id} element={element} />
+        ))}
+
+      {/* Main Photo - positioned by config */}
+      {(() => {
+        const config = getElement('main-photo');
+        if (!config?.visible) return null;
+        return (
+          <div 
+            className="absolute overflow-hidden"
+            style={{
+              left: `${config.x}%`,
+              top: `${config.y}%`,
+              width: `${config.width}%`,
+              height: `${config.height}%`,
+              transform: `rotate(${config.rotation}deg)`,
+              zIndex: config.zIndex,
+            }}
+          >
+            {mainPhoto ? (
+              <img src={mainPhoto} alt={guest.name} className="w-full h-full object-cover rounded-lg" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center rounded-lg">
+                <span className="text-6xl">👩</span>
               </div>
-            </div>
-            
-            {/* Decorative ribbon/tape on corner (hidden if using custom frame) */}
-            <div className="absolute -top-3 -right-3 w-16 h-8 bg-gradient-to-r from-red-300 to-red-400 transform rotate-12 opacity-80"
-                 style={{ 
-                   backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)'
-                 }} />
+            )}
           </div>
-          
-          {/* Guest number badge */}
-          <div className="mt-4 md:mt-6">
-            <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xl md:text-2xl font-bold px-6 md:px-8 py-2 md:py-3 rounded-lg shadow-lg transform -rotate-1">
+        );
+      })()}
+
+      {/* Name Text - positioned by config */}
+      {(() => {
+        const config = getElement('name-text');
+        if (!config?.visible) return null;
+        return (
+          <div 
+            className="absolute flex items-center justify-center"
+            style={{
+              left: `${config.x}%`,
+              top: `${config.y}%`,
+              width: `${config.width}%`,
+              height: `${config.height}%`,
+              transform: `rotate(${config.rotation}deg)`,
+              zIndex: config.zIndex,
+            }}
+          >
+            <h1 className="text-3xl md:text-5xl font-bold text-rose-700 font-serif tracking-wide text-center">
+              {guest.nickname || guest.name}
+            </h1>
+          </div>
+        );
+      })()}
+
+      {/* Introduction Text - positioned by config */}
+      {(() => {
+        const config = getElement('intro-text');
+        if (!config?.visible) return null;
+        return (
+          <div 
+            className="absolute overflow-auto p-4"
+            style={{
+              left: `${config.x}%`,
+              top: `${config.y}%`,
+              width: `${config.width}%`,
+              height: `${config.height}%`,
+              transform: `rotate(${config.rotation}deg)`,
+              zIndex: config.zIndex,
+            }}
+          >
+            <p className="text-base md:text-xl text-rose-800 leading-relaxed">
+              {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
+            </p>
+            <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
+          </div>
+        );
+      })()}
+
+      {/* Side Photos - positioned by config */}
+      {(() => {
+        const config1 = getElement('side-photo-1');
+        const config2 = getElement('side-photo-2');
+        return (
+          <>
+            {config1?.visible && sidePhotos[0] && (
+              <div 
+                className="absolute rounded-full overflow-hidden border-4 border-white shadow-lg"
+                style={{
+                  left: `${config1.x}%`,
+                  top: `${config1.y}%`,
+                  width: `${config1.width}%`,
+                  height: `${config1.height}%`,
+                  zIndex: config1.zIndex,
+                }}
+              >
+                <img src={sidePhotos[0]} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            {config2?.visible && sidePhotos[1] && (
+              <div 
+                className="absolute rounded-full overflow-hidden border-4 border-white shadow-lg"
+                style={{
+                  left: `${config2.x}%`,
+                  top: `${config2.y}%`,
+                  width: `${config2.width}%`,
+                  height: `${config2.height}%`,
+                  zIndex: config2.zIndex,
+                }}
+              >
+                <img src={sidePhotos[1]} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Tags Row - positioned by config */}
+      {(() => {
+        const config = getElement('tags-row');
+        if (!config?.visible) return null;
+        const tags = guest.tags.filter(t => t).slice(0, 3);
+        return (
+          <div 
+            className="absolute flex justify-center gap-3"
+            style={{
+              left: `${config.x}%`,
+              top: `${config.y}%`,
+              width: `${config.width}%`,
+              height: `${config.height}%`,
+              zIndex: config.zIndex,
+            }}
+          >
+            {tags.map((tag, index) => (
+              <div 
+                key={index}
+                className="px-4 md:px-6 py-2 bg-pink-100 border-2 border-pink-300 rounded-xl text-rose-700 font-medium text-sm shadow-md"
+              >
+                {tag}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* Guest Number Badge - positioned by config */}
+      {(() => {
+        const config = getElement('guest-badge');
+        if (!config?.visible) return null;
+        return (
+          <div 
+            className="absolute flex items-center justify-center"
+            style={{
+              left: `${config.x}%`,
+              top: `${config.y}%`,
+              width: `${config.width}%`,
+              height: `${config.height}%`,
+              transform: `rotate(${config.rotation}deg)`,
+              zIndex: config.zIndex,
+            }}
+          >
+            <span className="inline-block bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xl md:text-2xl font-bold px-6 py-2 rounded-lg shadow-lg">
               {guest.id}号女嘉宾
             </span>
           </div>
-        </div>
-        
-        {/* RIGHT SIDE - Info section */}
-        <div className="flex-1 flex flex-col pl-4 md:pl-8">
-          
-          {/* Top row: Name frame + Side photos */}
-          <div className="flex items-start justify-between mb-4 md:mb-6">
-            {/* Name in decorative frame */}
-            <div className="relative">
-              {/* Ornate frame border */}
-              <div className="border-2 border-rose-600 rounded-lg px-6 md:px-10 py-2 md:py-3 bg-white/50"
-                   style={{
-                     borderStyle: 'double',
-                     borderWidth: '4px',
-                   }}>
-                <h1 className="text-3xl md:text-5xl font-bold text-rose-700 font-serif tracking-wide">
-                  {guest.nickname || guest.name}
-                </h1>
-              </div>
-              {/* Small decorative dots */}
-              <div className="absolute -top-1 -left-1 w-2 h-2 bg-rose-500 rounded-full" />
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
-              <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-rose-500 rounded-full" />
-              <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />
-            </div>
-            
-            {/* Side circular photos */}
-            <div className="flex gap-2 md:gap-3">
-              {sidePhotos.map((photo, index) => (
-                <div key={index} className="relative">
-                  <div className="w-16 h-16 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-white shadow-lg">
-                    <img src={photo} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  {/* Decorative ribbon */}
-                  <div className="absolute -top-2 -right-2 w-6 h-4 bg-gradient-to-r from-red-300 to-red-400 transform rotate-45 opacity-80"
-                       style={{ 
-                         backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.3) 2px, rgba(255,255,255,0.3) 4px)'
-                       }} />
-                </div>
-              ))}
-              {/* Placeholder if no side photos */}
-              {sidePhotos.length === 0 && (
-                <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-pink-200 border-4 border-white shadow-lg flex items-center justify-center text-2xl">
-                  💕
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Introduction box */}
-          <div className="flex-1 flex flex-col">
-            <div className="bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl p-4 md:p-6 shadow-inner flex-1 max-h-[50vh] overflow-auto">
-              <p className="text-base md:text-xl text-rose-800 leading-relaxed">
-                {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
-              </p>
-              {/* Ellipsis decoration */}
-              <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
-            </div>
-            
-            {/* Tags row */}
-            <div className="flex justify-center gap-3 md:gap-4 mt-4 md:mt-6">
-              {guest.tags.filter(t => t).slice(0, 3).map((tag, index) => (
-                <div 
-                  key={index}
-                  className="px-4 md:px-8 py-2 md:py-3 bg-pink-100 border-2 border-pink-300 rounded-xl text-rose-700 font-medium text-sm md:text-base shadow-md hover:bg-pink-200 transition-colors"
-                >
-                  {tag}
-                </div>
-              ))}
-              {/* Fill empty tag slots */}
-              {guest.tags.filter(t => t).length < 3 && Array.from({ length: 3 - guest.tags.filter(t => t).length }).map((_, i) => (
-                <div 
-                  key={`empty-${i}`}
-                  className="px-4 md:px-8 py-2 md:py-3 bg-pink-50 border-2 border-pink-200 rounded-xl text-pink-300 text-sm md:text-base"
-                >
-                  {guest.school || guest.major || '标签'}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Logo in bottom right */}
-      <div className="absolute bottom-4 right-6 flex items-center gap-2 opacity-80">
+        );
+      })()}
+
+      {/* Logo in bottom right (fixed) */}
+      <div className="absolute bottom-4 right-6 flex items-center gap-2 opacity-80 z-50">
         <Image
           src="/assets/images/tandon-cssa.png"
           alt="Tandon CSSA"
@@ -310,11 +386,11 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
           <div className="text-xs text-rose-400">中国学生学者联合会</div>
         </div>
       </div>
-      
+
       {/* Floating heart decorations */}
-      <div className="absolute top-12 left-6 text-3xl animate-pulse opacity-40">💕</div>
-      <div className="absolute bottom-1/4 left-10 text-2xl animate-pulse opacity-30" style={{ animationDelay: '0.5s' }}>💗</div>
-      <div className="absolute top-1/4 right-6 text-4xl animate-pulse opacity-30" style={{ animationDelay: '1s' }}>💖</div>
+      <div className="absolute top-12 left-6 text-3xl animate-pulse opacity-40 z-20">💕</div>
+      <div className="absolute bottom-1/4 left-10 text-2xl animate-pulse opacity-30 z-20" style={{ animationDelay: '0.5s' }}>💗</div>
+      <div className="absolute top-1/4 right-6 text-4xl animate-pulse opacity-30 z-20" style={{ animationDelay: '1s' }}>💖</div>
     </div>
   );
 }
@@ -339,6 +415,19 @@ export default function StagePage() {
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
+  const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(defaultTemplateConfig);
+
+  // Load template config
+  useEffect(() => {
+    fetch('/api/template-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.elements) {
+          setTemplateConfig(data);
+        }
+      })
+      .catch(err => console.error('Failed to load template config:', err));
+  }, []);
 
   // Update clock
   useEffect(() => {
@@ -431,7 +520,7 @@ export default function StagePage() {
 
       {/* Fullscreen Female Introduction (PPT-style) */}
       {currentFemaleForIntro && (
-        <FemaleGuestFullscreen guest={currentFemaleForIntro} />
+        <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
       )}
 
       {/* Header - Time display (toggles with H key) */}
