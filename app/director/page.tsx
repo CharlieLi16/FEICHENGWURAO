@@ -65,6 +65,7 @@ export default function DirectorPage() {
   const [slidesConfig, setSlidesConfig] = useState<{
     configured: boolean;
     presentationId?: string;
+    presentationUrl?: string;
     title?: string;
     slideCount?: number;
     lastUpdated?: number;
@@ -794,79 +795,157 @@ export default function DirectorPage() {
             </div>
           </div>
 
-          {/* Google Slides Integration */}
-          <div className="bg-gradient-to-br from-blue-900/50 to-indigo-900/50 rounded-xl p-4 border border-blue-500/30">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">📊 Google Slides</h2>
-              {slidesMessage && (
-                <span className={`text-xs ${slidesMessage.includes('✓') ? 'text-green-400' : 'text-red-400'}`}>
-                  {slidesMessage}
-                </span>
-              )}
+          {/* Female Intro Mode Selection */}
+          <div className="bg-gray-800 rounded-xl p-4">
+            <h2 className="text-lg font-semibold mb-3">👩 女嘉宾介绍模式</h2>
+            
+            {/* Mode Toggle - Visual Segmented Control */}
+            <div className="flex rounded-lg overflow-hidden mb-4 border border-gray-600">
+              <button
+                onClick={() => updateState({ useGoogleSlides: false })}
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+                  !state.useGoogleSlides
+                    ? 'bg-pink-600 text-white'
+                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+              >
+                🎨 模板
+              </button>
+              <button
+                onClick={() => updateState({ useGoogleSlides: true })}
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all ${
+                  state.useGoogleSlides
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                }`}
+              >
+                📊 Google Slides
+              </button>
             </div>
             
-            {slidesConfig?.configured ? (
-              <div className="space-y-3">
-                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-green-400 text-sm font-medium">✓ 已配置</div>
-                      <div className="text-xs text-gray-400">
-                        {slidesConfig.slideCount || 12} 页幻灯片
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {slidesConfig.lastUpdated && new Date(slidesConfig.lastUpdated).toLocaleTimeString()}
-                    </div>
+            {/* Current Mode Status */}
+            <div className={`p-3 rounded-lg mb-4 ${
+              state.useGoogleSlides 
+                ? 'bg-blue-500/10 border border-blue-500/30' 
+                : 'bg-pink-500/10 border border-pink-500/30'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{state.useGoogleSlides ? '📊' : '🎨'}</span>
+                <div>
+                  <div className={`font-medium ${state.useGoogleSlides ? 'text-blue-400' : 'text-pink-400'}`}>
+                    {state.useGoogleSlides ? 'Google Slides 模式' : '模板编辑器模式'}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {state.useGoogleSlides 
+                      ? (slidesConfig?.configured ? '幻灯片已配置' : '需要配置链接') 
+                      : '使用预设模板显示女嘉宾介绍'}
                   </div>
                 </div>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={syncSlides}
-                    disabled={slidesLoading}
-                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-sm"
-                  >
-                    {slidesLoading ? '同步中...' : '🔄 重新同步'}
-                  </button>
-                  <button
-                    onClick={removeSlidesConfig}
-                    className="py-2 px-3 bg-red-600/50 hover:bg-red-600 rounded-lg text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-                
-                {/* Toggle: use Google Slides for female intro */}
-                <label className="flex items-center gap-2 p-2 bg-gray-700/50 rounded-lg cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={state.useGoogleSlides || false}
-                    onChange={(e) => updateState({ useGoogleSlides: e.target.checked })}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm">女嘉宾介绍使用 Google Slides</span>
-                </label>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={slidesUrl}
-                  onChange={(e) => setSlidesUrl(e.target.value)}
-                  placeholder="粘贴 Google Slides 链接..."
-                  className="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder:text-gray-500"
-                />
-                <button
-                  onClick={configureSlidesUrl}
-                  disabled={!slidesUrl.trim() || slidesLoading}
-                  className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-sm"
+            </div>
+            
+            {/* Google Slides Configuration (only show when Google Slides mode is active) */}
+            {state.useGoogleSlides && (
+              <div className="space-y-3 pt-3 border-t border-gray-700">
+                {slidesConfig?.configured ? (
+                  <>
+                    {/* Configured State */}
+                    <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <div>
+                          <div className="text-sm text-green-400">已连接</div>
+                          <div className="text-xs text-gray-500">{slidesConfig.slideCount || 12} 张幻灯片</div>
+                        </div>
+                      </div>
+                      <a
+                        href={slidesConfig.presentationUrl || `https://docs.google.com/presentation/d/${slidesConfig.presentationId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:underline"
+                      >
+                        打开 ↗
+                      </a>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (state.currentFemaleIntro) {
+                            updateState({ currentFemaleIntro: 1 });
+                          } else {
+                            updateState({ currentFemaleIntro: 1 });
+                          }
+                        }}
+                        className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm"
+                      >
+                        👁️ 预览第1页
+                      </button>
+                      <button
+                        onClick={removeSlidesConfig}
+                        className="py-2 px-3 bg-red-600/50 hover:bg-red-600 rounded-lg text-sm"
+                        title="移除配置"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    
+                    {slidesMessage && (
+                      <div className={`text-xs ${slidesMessage.includes('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                        {slidesMessage}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Not Configured - Setup Form */}
+                    <div className="space-y-2">
+                      <label className="text-sm text-gray-400">Google Slides 链接</label>
+                      <input
+                        type="text"
+                        value={slidesUrl}
+                        onChange={(e) => setSlidesUrl(e.target.value)}
+                        placeholder="https://docs.google.com/presentation/d/..."
+                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                      <button
+                        onClick={configureSlidesUrl}
+                        disabled={!slidesUrl.trim() || slidesLoading}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-sm font-medium"
+                      >
+                        {slidesLoading ? '连接中...' : '🔗 连接'}
+                      </button>
+                      {slidesMessage && (
+                        <div className={`text-xs ${slidesMessage.includes('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                          {slidesMessage}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Help */}
+                    <div className="p-2 bg-gray-700/50 rounded text-xs text-gray-400">
+                      <div className="font-medium mb-1">📝 使用说明：</div>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>在 Google Slides 创建幻灯片（第1张=1号女嘉宾）</li>
+                        <li>点击「共享」→「知道链接的人可查看」</li>
+                        <li>复制链接粘贴到上方</li>
+                      </ol>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            {/* Template Editor Link (only show when Template mode is active) */}
+            {!state.useGoogleSlides && (
+              <div className="pt-3 border-t border-gray-700">
+                <Link
+                  href="/director/template-editor"
+                  className="flex items-center justify-center gap-2 w-full py-2 bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/30 rounded-lg text-sm text-pink-300"
                 >
-                  {slidesLoading ? '配置中...' : '配置 Google Slides'}
-                </button>
-                <p className="text-xs text-gray-500">
-                  幻灯片需设为「知道链接的人可查看」
-                </p>
+                  🎨 打开模板编辑器
+                </Link>
               </div>
             )}
           </div>
