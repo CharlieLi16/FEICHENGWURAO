@@ -411,23 +411,79 @@ function SlideOverlay({ imageUrl, slideName, blur = 0 }: { imageUrl: string; sli
 
 // Google Slides Overlay for female guest intro
 function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  
   // Google Slides exports pages as PNG using page index (0-based)
   // Each female guest (1-12) maps to slide index (0-11)
   const pageIndex = guestId - 1;
   const imageUrl = `https://docs.google.com/presentation/d/${presentationId}/export/png?pageid=p${pageIndex}`;
   
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      <img
-        src={imageUrl}
-        alt={`女嘉宾 ${guestId}`}
-        className="w-full h-full object-contain"
-        onError={(e) => {
-          // Fallback: try alternate URL format
-          const target = e.target as HTMLImageElement;
-          target.src = `https://docs.google.com/presentation/d/${presentationId}/export/jpeg?id=${presentationId}&pageIndex=${pageIndex}`;
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">
+      {/* Background - blurred version of the slide or gradient */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-pink-900/90 via-rose-800/90 to-purple-900/90"
+      />
+      
+      {/* Blurred background image for depth */}
+      <div 
+        className="absolute inset-0 scale-110"
+        style={{
+          backgroundImage: `url(${imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(30px) brightness(0.4)',
         }}
       />
+      
+      {/* Loading spinner */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-pink-300 border-t-transparent" />
+        </div>
+      )}
+      
+      {/* Error state */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white">
+          <div className="text-6xl mb-4">😅</div>
+          <div className="text-xl">幻灯片加载失败</div>
+          <div className="text-sm text-gray-300 mt-2">请检查 Google Slides 是否已公开分享</div>
+        </div>
+      )}
+      
+      {/* Main slide image - centered with max size */}
+      <div className="relative w-full h-full flex items-center justify-center p-4">
+        <img
+          src={imageUrl}
+          alt={`女嘉宾 ${guestId}`}
+          className={`max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-500 ${
+            loading ? 'opacity-0' : 'opacity-100'
+          }`}
+          style={{
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+          }}
+          onLoad={() => setLoading(false)}
+          onError={(e) => {
+            // Fallback: try alternate URL format
+            const target = e.target as HTMLImageElement;
+            if (!target.dataset.triedFallback) {
+              target.dataset.triedFallback = 'true';
+              target.src = `https://docs.google.com/presentation/d/${presentationId}/export/jpeg?id=${presentationId}&pageIndex=${pageIndex}`;
+            } else {
+              setError(true);
+              setLoading(false);
+            }
+          }}
+        />
+      </div>
+      
+      {/* Guest number badge */}
+      <div className="absolute top-6 left-6 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-4 py-2 rounded-full text-lg font-bold shadow-lg">
+        {guestId}号女嘉宾
+      </div>
     </div>
   );
 }
