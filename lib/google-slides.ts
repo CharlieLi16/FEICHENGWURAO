@@ -1,17 +1,10 @@
-// Google Slides API integration
-// Requires GOOGLE_API_KEY environment variable
-
-export interface SlideInfo {
-  slideId: string;
-  pageNumber: number;
-  thumbnailUrl?: string;
-  imageUrl?: string;
-}
+// Google Slides integration utilities
+// We use iframe embed, so no API key needed - just URL extraction
 
 export interface PresentationInfo {
   presentationId: string;
   title: string;
-  slides: SlideInfo[];
+  slideCount: number;
   lastSynced: number;
 }
 
@@ -36,58 +29,7 @@ export function extractPresentationId(url: string): string | null {
   return null;
 }
 
-// Fetch presentation metadata from Google Slides API
-export async function fetchPresentation(presentationId: string): Promise<PresentationInfo | null> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  
-  if (!apiKey) {
-    console.error('[GoogleSlides] GOOGLE_API_KEY not configured');
-    return null;
-  }
-  
-  try {
-    // Fetch presentation metadata
-    const response = await fetch(
-      `https://slides.googleapis.com/v1/presentations/${presentationId}?key=${apiKey}`,
-      { next: { revalidate: 60 } } // Cache for 60 seconds
-    );
-    
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[GoogleSlides] API error:', error);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    // Extract slide info
-    const slides: SlideInfo[] = (data.slides || []).map((slide: { objectId: string }, index: number) => ({
-      slideId: slide.objectId,
-      pageNumber: index + 1,
-      // Thumbnail URL using Google Slides export
-      thumbnailUrl: `https://docs.google.com/presentation/d/${presentationId}/export/png?id=${presentationId}&pageid=${slide.objectId}`,
-      imageUrl: `https://docs.google.com/presentation/d/${presentationId}/export/png?id=${presentationId}&pageid=${slide.objectId}`,
-    }));
-    
-    return {
-      presentationId,
-      title: data.title || 'Untitled',
-      slides,
-      lastSynced: Date.now(),
-    };
-  } catch (error) {
-    console.error('[GoogleSlides] Failed to fetch presentation:', error);
-    return null;
-  }
-}
-
-// Get direct image URL for a slide (using Google's export feature)
-// Note: This works for publicly shared presentations
-export function getSlideImageUrl(presentationId: string, slideId: string): string {
-  return `https://docs.google.com/presentation/d/${presentationId}/export/png?id=${presentationId}&pageid=${slideId}`;
-}
-
-// Alternative: Get slide as JPEG (smaller file size)
-export function getSlideImageUrlJpeg(presentationId: string, pageNumber: number): string {
-  return `https://docs.google.com/presentation/d/${presentationId}/export/jpeg?id=${presentationId}&pageIndex=${pageNumber - 1}`;
+// Generate embed URL for a specific slide
+export function getEmbedUrl(presentationId: string, slideNumber: number): string {
+  return `https://docs.google.com/presentation/d/${presentationId}/embed?rm=minimal&start=false&loop=false&slide=${slideNumber}`;
 }

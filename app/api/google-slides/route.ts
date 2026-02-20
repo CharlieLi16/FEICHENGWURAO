@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractPresentationId, fetchPresentation, PresentationInfo } from '@/lib/google-slides';
+import { extractPresentationId } from '@/lib/google-slides';
 import { put, head, del } from '@vercel/blob';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
@@ -14,7 +14,7 @@ const isLocalDev = !process.env.BLOB_READ_WRITE_TOKEN;
 interface SlidesConfig {
   presentationUrl: string;
   presentationId: string;
-  presentation: PresentationInfo | null;
+  slideCount: number;
   lastUpdated: number;
 }
 
@@ -81,59 +81,11 @@ export async function GET() {
   }
 }
 
-// POST - Set Google Slides URL and sync
+// POST - Set Google Slides URL
 export async function POST(request: NextRequest) {
   try {
-    const { url, action } = await request.json();
+    const { url, slideCount } = await request.json();
     
-    // Action: sync - Re-fetch slides from existing config
-    if (action === 'sync') {
-      let existingConfig: SlidesConfig | null = null;
-      
-      if (isLocalDev) {
-        existingConfig = readLocalConfig();
-      } else {
-        const blobInfo = await head(BLOB_PATH);
-        if (blobInfo) {
-          const response = await fetch(blobInfo.url);
-          existingConfig = await response.json();
-        }
-      }
-      
-      if (!existingConfig?.presentationId) {
-        return NextResponse.json({ error: 'No presentation configured' }, { status: 400 });
-      }
-      
-      const presentation = await fetchPresentation(existingConfig.presentationId);
-      if (!presentation) {
-        return NextResponse.json({ error: 'Failed to fetch presentation' }, { status: 500 });
-      }
-      
-      const newConfig: SlidesConfig = {
-        ...existingConfig,
-        presentation,
-        lastUpdated: Date.now(),
-      };
-      
-      if (isLocalDev) {
-        writeLocalConfig(newConfig);
-      } else {
-        const blobInfo = await head(BLOB_PATH);
-        if (blobInfo) await del(blobInfo.url);
-        await put(BLOB_PATH, JSON.stringify(newConfig, null, 2), {
-          access: 'public',
-          contentType: 'application/json',
-        });
-      }
-      
-      return NextResponse.json({
-        success: true,
-        presentation,
-        slideCount: presentation.slides.length,
-      });
-    }
-    
-    // Action: set URL - Configure new presentation
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
@@ -143,20 +95,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid Google Slides URL' }, { status: 400 });
     }
     
-    // Build config (without API key, we use direct export URLs)
+    // Build config - we use iframe embed so no API needed
     const config: SlidesConfig = {
       presentationUrl: url,
       presentationId,
-      presentation: {
-        presentationId,
-        title: 'Presentation',
-        slides: Array.from({ length: 12 }, (_, i) => ({
-          slideId: `slide-${i + 1}`,
-          pageNumber: i + 1,
-          imageUrl: `https://docs.google.com/presentation/d/${presentationId}/export/png?pageid=p${i}`,
-        })),
-        lastSynced: Date.now(),
-      },
+      slideCount: slideCount || 12, // Default to 12 slides
       lastUpdated: Date.now(),
     };
     
@@ -179,7 +122,7 @@ export async function POST(request: NextRequest) {
       success: true,
       presentationId,
       message: isLocalDev ? '已保存到本地' : '已保存到云端',
-      slideCount: 12,
+      slideCount: config.slideCount,
     });
     
   } catch (error) {

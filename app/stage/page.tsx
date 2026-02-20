@@ -415,17 +415,16 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
   
   // Google Slides embed URL - directly embeds the presentation
   // rm=minimal removes chrome, slide parameter goes to specific slide
-  // Note: slide numbers in embed are 1-based (slide 1, slide 2, etc.)
   const embedUrl = `https://docs.google.com/presentation/d/${presentationId}/embed?rm=minimal&start=false&loop=false&slide=${guestId}`;
   
   return (
-    <div className="fixed inset-0 z-50 bg-black">
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-100">
       {/* Loading spinner */}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 bg-black">
+        <div className="absolute inset-0 flex items-center justify-center z-10">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-pink-400 border-t-transparent" />
-            <div className="text-white text-lg">加载幻灯片中...</div>
+            <div className="text-rose-600 text-lg">加载幻灯片中...</div>
           </div>
         </div>
       )}
@@ -436,10 +435,6 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
         className="w-full h-full border-0"
         allowFullScreen
         onLoad={() => setLoading(false)}
-        style={{
-          // Hide scrollbars
-          overflow: 'hidden',
-        }}
       />
     </div>
   );
