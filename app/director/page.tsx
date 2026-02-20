@@ -444,12 +444,20 @@ export default function DirectorPage() {
           <div className="bg-gradient-to-br from-indigo-900/50 to-blue-900/50 rounded-xl p-4 border border-indigo-500/30">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">📽️ 幻灯片</h2>
-              <Link
-                href="/director/slides"
-                className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600"
-              >
-                管理
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  href="/director/slides"
+                  className="px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600"
+                >
+                  管理
+                </Link>
+                <Link
+                  href="/director/template-editor"
+                  className="px-2 py-1 text-xs bg-pink-600 rounded hover:bg-pink-500"
+                >
+                  🎨 模板
+                </Link>
+              </div>
             </div>
 
             {/* Current slide status */}
