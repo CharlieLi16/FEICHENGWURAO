@@ -158,18 +158,17 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Background - Custom template image or fallback gradient */}
-      <img 
-        src="/assets/images/template/bg-frame.png" 
-        alt="" 
-        className="absolute inset-0 w-full h-full object-cover"
-        onError={(e) => {
-          // Fallback to gradient if image fails to load
-          e.currentTarget.style.display = 'none';
-        }}
-      />
-      {/* Fallback gradient (shows if image missing) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 -z-10" />
+      {/* Background - Pink/Coral gradient with decorative border */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50" />
+      
+      {/* Decorative pink border frame */}
+      <div className="absolute inset-3 md:inset-6 border-[6px] border-pink-400/60 rounded-2xl" />
+      
+      {/* Corner decorations - ribbon style */}
+      <div className="absolute top-0 left-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60" 
+           style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%, 0 100%)' }} />
+      <div className="absolute top-0 right-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60"
+           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 100%)' }} />
       
       {/* Main content layout */}
       <div className="relative h-full flex p-6 md:p-10">
@@ -260,12 +259,24 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
           
           {/* Introduction box */}
           <div className="flex-1 flex flex-col">
-            <div className="bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl p-4 md:p-6 shadow-inner flex-1 max-h-[50vh] overflow-auto">
-              <p className="text-base md:text-xl text-rose-800 leading-relaxed">
-                {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
-              </p>
-              {/* Ellipsis decoration */}
-              <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
+            <div className="relative rounded-2xl p-4 md:p-6 flex-1 max-h-[50vh] overflow-auto">
+              {/* Custom intro card background */}
+              <img 
+                src="/assets/images/template/intro-card.png" 
+                alt="" 
+                className="absolute inset-0 w-full h-full object-fill rounded-2xl"
+              />
+              {/* Fallback background */}
+              <div className="absolute inset-0 bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl -z-10" />
+              
+              {/* Text content */}
+              <div className="relative z-10">
+                <p className="text-base md:text-xl text-rose-800 leading-relaxed">
+                  {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
+                </p>
+                {/* Ellipsis decoration */}
+                <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
+              </div>
             </div>
             
             {/* Tags row */}
