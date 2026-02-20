@@ -158,17 +158,18 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Background - Pink/Coral gradient with decorative border */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50" />
-      
-      {/* Decorative pink border frame */}
-      <div className="absolute inset-3 md:inset-6 border-[6px] border-pink-400/60 rounded-2xl" />
-      
-      {/* Corner decorations - ribbon style */}
-      <div className="absolute top-0 left-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60" 
-           style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%, 0 100%)' }} />
-      <div className="absolute top-0 right-8 w-16 h-24 bg-gradient-to-b from-pink-400 to-pink-300 opacity-60"
-           style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 100%)' }} />
+      {/* Background - Custom template image or fallback gradient */}
+      <img 
+        src="/assets/images/template/bg-frame.png" 
+        alt="" 
+        className="absolute inset-0 w-full h-full object-cover"
+        onError={(e) => {
+          // Fallback to gradient if image fails to load
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+      {/* Fallback gradient (shows if image missing) */}
+      <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-rose-100 to-pink-50 -z-10" />
       
       {/* Main content layout */}
       <div className="relative h-full flex p-6 md:p-10">
