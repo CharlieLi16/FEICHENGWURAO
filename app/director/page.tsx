@@ -5,7 +5,7 @@ import { useSound } from '@/hooks/useSound';
 import { EventPhase, phaseNames, lightColors, SlideSlot } from '@/lib/event-state';
 import Link from 'next/link';
 import SkeletonUpload from '@/components/SkeletonUpload';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Phase flow for the event
 const phaseFlow: EventPhase[] = [
@@ -59,6 +59,95 @@ export default function DirectorPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
   const [lastPlayed, setLastPlayed] = useState<string | null>(null);
+  
+  // Google Slides integration
+  const [slidesUrl, setSlidesUrl] = useState('');
+  const [slidesConfig, setSlidesConfig] = useState<{
+    configured: boolean;
+    presentationId?: string;
+    title?: string;
+    slideCount?: number;
+    lastUpdated?: number;
+  } | null>(null);
+  const [slidesLoading, setSlidesLoading] = useState(false);
+  const [slidesMessage, setSlidesMessage] = useState('');
+  
+  // Load Google Slides config on mount
+  useEffect(() => {
+    loadSlidesConfig();
+  }, []);
+  
+  const loadSlidesConfig = async () => {
+    try {
+      const res = await fetch('/api/google-slides');
+      const data = await res.json();
+      setSlidesConfig(data);
+      if (data.presentationUrl) {
+        setSlidesUrl(data.presentationUrl);
+      }
+    } catch (error) {
+      console.error('Failed to load slides config:', error);
+    }
+  };
+  
+  const configureSlidesUrl = async () => {
+    if (!slidesUrl.trim()) return;
+    setSlidesLoading(true);
+    setSlidesMessage('');
+    try {
+      const res = await fetch('/api/google-slides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: slidesUrl }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSlidesMessage(`✓ 已配置 ${data.slideCount} 页`);
+        await loadSlidesConfig();
+      } else {
+        setSlidesMessage(`✗ ${data.error}`);
+      }
+    } catch (error) {
+      setSlidesMessage('✗ 配置失败');
+    } finally {
+      setSlidesLoading(false);
+    }
+  };
+  
+  const syncSlides = async () => {
+    setSlidesLoading(true);
+    setSlidesMessage('');
+    try {
+      const res = await fetch('/api/google-slides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSlidesMessage('✓ 同步完成');
+        await loadSlidesConfig();
+      } else {
+        setSlidesMessage(`✗ ${data.error}`);
+      }
+    } catch (error) {
+      setSlidesMessage('✗ 同步失败');
+    } finally {
+      setSlidesLoading(false);
+    }
+  };
+  
+  const removeSlidesConfig = async () => {
+    if (!confirm('确定要移除 Google Slides 配置吗？')) return;
+    try {
+      await fetch('/api/google-slides', { method: 'DELETE' });
+      setSlidesConfig(null);
+      setSlidesUrl('');
+      setSlidesMessage('已移除');
+    } catch (error) {
+      setSlidesMessage('✗ 移除失败');
+    }
+  };
 
   // Update both local state AND master volume (affects playing sounds)
   const setVolume = (newVolume: number) => {
@@ -703,6 +792,83 @@ export default function DirectorPage() {
                 <span>模糊</span>
               </div>
             </div>
+          </div>
+
+          {/* Google Slides Integration */}
+          <div className="bg-gradient-to-br from-blue-900/50 to-indigo-900/50 rounded-xl p-4 border border-blue-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">📊 Google Slides</h2>
+              {slidesMessage && (
+                <span className={`text-xs ${slidesMessage.includes('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                  {slidesMessage}
+                </span>
+              )}
+            </div>
+            
+            {slidesConfig?.configured ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-green-400 text-sm font-medium">✓ 已配置</div>
+                      <div className="text-xs text-gray-400">
+                        {slidesConfig.slideCount || 12} 页幻灯片
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {slidesConfig.lastUpdated && new Date(slidesConfig.lastUpdated).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={syncSlides}
+                    disabled={slidesLoading}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-sm"
+                  >
+                    {slidesLoading ? '同步中...' : '🔄 重新同步'}
+                  </button>
+                  <button
+                    onClick={removeSlidesConfig}
+                    className="py-2 px-3 bg-red-600/50 hover:bg-red-600 rounded-lg text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                {/* Toggle: use Google Slides for female intro */}
+                <label className="flex items-center gap-2 p-2 bg-gray-700/50 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.useGoogleSlides || false}
+                    onChange={(e) => updateState({ useGoogleSlides: e.target.checked })}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm">女嘉宾介绍使用 Google Slides</span>
+                </label>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={slidesUrl}
+                  onChange={(e) => setSlidesUrl(e.target.value)}
+                  placeholder="粘贴 Google Slides 链接..."
+                  className="w-full bg-gray-700 rounded-lg px-3 py-2 text-sm placeholder:text-gray-500"
+                />
+                <button
+                  onClick={configureSlidesUrl}
+                  disabled={!slidesUrl.trim() || slidesLoading}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-sm"
+                >
+                  {slidesLoading ? '配置中...' : '配置 Google Slides'}
+                </button>
+                <p className="text-xs text-gray-500">
+                  幻灯片需设为「知道链接的人可查看」
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Guest Control Links */}

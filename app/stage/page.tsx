@@ -409,6 +409,29 @@ function SlideOverlay({ imageUrl, slideName, blur = 0 }: { imageUrl: string; sli
   );
 }
 
+// Google Slides Overlay for female guest intro
+function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
+  // Google Slides exports pages as PNG using page index (0-based)
+  // Each female guest (1-12) maps to slide index (0-11)
+  const pageIndex = guestId - 1;
+  const imageUrl = `https://docs.google.com/presentation/d/${presentationId}/export/png?pageid=p${pageIndex}`;
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black">
+      <img
+        src={imageUrl}
+        alt={`女嘉宾 ${guestId}`}
+        className="w-full h-full object-contain"
+        onError={(e) => {
+          // Fallback: try alternate URL format
+          const target = e.target as HTMLImageElement;
+          target.src = `https://docs.google.com/presentation/d/${presentationId}/export/jpeg?id=${presentationId}&pageIndex=${pageIndex}`;
+        }}
+      />
+    </div>
+  );
+}
+
 export default function StagePage() {
   const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
   const { play } = useSound();
@@ -416,6 +439,7 @@ export default function StagePage() {
   const [showRoundInfo, setShowRoundInfo] = useState(true);
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(defaultTemplateConfig);
+  const [googleSlidesId, setGoogleSlidesId] = useState<string | null>(null);
 
   // Load template config
   useEffect(() => {
@@ -427,6 +451,18 @@ export default function StagePage() {
         }
       })
       .catch(err => console.error('Failed to load template config:', err));
+  }, []);
+
+  // Load Google Slides config
+  useEffect(() => {
+    fetch('/api/google-slides')
+      .then(res => res.json())
+      .then(data => {
+        if (data.configured && data.presentationId) {
+          setGoogleSlidesId(data.presentationId);
+        }
+      })
+      .catch(err => console.error('Failed to load Google Slides config:', err));
   }, []);
 
   // Update clock
@@ -518,10 +554,12 @@ export default function StagePage() {
         onClose={() => updateState({ vcrPlaying: false })}
       />
 
-      {/* Fullscreen Female Introduction (PPT-style) */}
-      {currentFemaleForIntro && (
+      {/* Fullscreen Female Introduction - Google Slides or Template */}
+      {state.currentFemaleIntro && state.useGoogleSlides && googleSlidesId ? (
+        <GoogleSlidesOverlay guestId={state.currentFemaleIntro} presentationId={googleSlidesId} />
+      ) : currentFemaleForIntro ? (
         <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
-      )}
+      ) : null}
 
       {/* Header - Time display (toggles with H key) */}
       <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>

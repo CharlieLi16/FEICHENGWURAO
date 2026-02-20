@@ -109,6 +109,7 @@ export interface EventState {
   currentSlide: string | null;      // Current slide ID being shown (fullscreen)
   stageBackground?: string;         // Custom stage background image URL
   backgroundBlur: number;           // Background blur level (0-20px)
+  useGoogleSlides?: boolean;        // Use Google Slides for female intro
   lastUpdated: number;              // Timestamp
 }
 
