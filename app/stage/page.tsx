@@ -175,27 +175,32 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
         
         {/* LEFT SIDE - Main Photo with frame */}
         <div className="flex-shrink-0 flex flex-col items-center justify-center w-[40%]">
-          {/* Photo frame - tilted polaroid style */}
+          {/* Photo frame - custom template or fallback */}
           <div className="relative transform -rotate-2 hover:rotate-0 transition-transform duration-300">
-            {/* White frame border */}
-            <div className="bg-white p-3 md:p-4 rounded-lg shadow-2xl">
-              {/* Pink inner border */}
-              <div className="border-4 border-pink-300 rounded overflow-hidden">
+            {/* Custom photo frame image */}
+            <div className="relative">
+              <img 
+                src="/assets/images/template/photo-frame.png" 
+                alt="" 
+                className="w-72 h-auto md:w-96 drop-shadow-2xl"
+              />
+              {/* Photo positioned inside the frame */}
+              <div className="absolute inset-0 flex items-center justify-center p-6 md:p-8">
                 {mainPhoto ? (
                   <img
                     src={mainPhoto}
                     alt={guest.name}
-                    className="w-56 h-72 md:w-72 md:h-96 object-cover"
+                    className="w-full h-full object-cover rounded"
                   />
                 ) : (
-                  <div className="w-56 h-72 md:w-72 md:h-96 bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center">
+                  <div className="w-full h-full bg-gradient-to-br from-pink-100 to-pink-200 flex items-center justify-center rounded">
                     <span className="text-8xl">👩</span>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Decorative ribbon/tape on corner */}
+            {/* Decorative ribbon/tape on corner (hidden if using custom frame) */}
             <div className="absolute -top-3 -right-3 w-16 h-8 bg-gradient-to-r from-red-300 to-red-400 transform rotate-12 opacity-80"
                  style={{ 
                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.3) 3px, rgba(255,255,255,0.3) 6px)'
@@ -259,24 +264,12 @@ function FemaleGuestFullscreen({ guest }: { guest: FemaleGuest }) {
           
           {/* Introduction box */}
           <div className="flex-1 flex flex-col">
-            <div className="relative rounded-2xl p-4 md:p-6 flex-1 max-h-[50vh] overflow-auto">
-              {/* Custom intro card background */}
-              <img 
-                src="/assets/images/template/intro-card.png" 
-                alt="" 
-                className="absolute inset-0 w-full h-full object-fill rounded-2xl"
-              />
-              {/* Fallback background */}
-              <div className="absolute inset-0 bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl -z-10" />
-              
-              {/* Text content */}
-              <div className="relative z-10">
-                <p className="text-base md:text-xl text-rose-800 leading-relaxed">
-                  {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
-                </p>
-                {/* Ellipsis decoration */}
-                <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
-              </div>
+            <div className="bg-gradient-to-b from-pink-200/80 to-pink-100/80 rounded-2xl p-4 md:p-6 shadow-inner flex-1 max-h-[50vh] overflow-auto">
+              <p className="text-base md:text-xl text-rose-800 leading-relaxed">
+                {guest.introduction || `我是${guest.nickname || guest.name}，很高兴认识大家！`}
+              </p>
+              {/* Ellipsis decoration */}
+              <div className="text-center mt-4 text-rose-400 text-2xl tracking-widest">···</div>
             </div>
             
             {/* Tags row */}
