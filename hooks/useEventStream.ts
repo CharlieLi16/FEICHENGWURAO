@@ -61,12 +61,34 @@ export function useEventStream() {
   }, []);
 
   // Actions to update state
+  // Automatically handles mutual exclusivity for fullscreen overlays
   const updateState = useCallback(async (updates: Partial<EventState>) => {
     try {
+      // Mutual exclusivity: when one fullscreen state is activated, clear others
+      const mutuallyExclusiveUpdates = { ...updates };
+      
+      // If setting currentFemaleIntro → clear VCR and slides
+      if (updates.currentFemaleIntro !== undefined && updates.currentFemaleIntro !== null) {
+        mutuallyExclusiveUpdates.vcrPlaying = false;
+        mutuallyExclusiveUpdates.currentSlide = null;
+      }
+      
+      // If starting VCR → clear female intro and slides
+      if (updates.vcrPlaying === true) {
+        mutuallyExclusiveUpdates.currentFemaleIntro = null;
+        mutuallyExclusiveUpdates.currentSlide = null;
+      }
+      
+      // If showing slide → clear female intro and VCR
+      if (updates.currentSlide !== undefined && updates.currentSlide !== null) {
+        mutuallyExclusiveUpdates.currentFemaleIntro = null;
+        mutuallyExclusiveUpdates.vcrPlaying = false;
+      }
+      
       const response = await fetch('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateState', updates }),
+        body: JSON.stringify({ action: 'updateState', updates: mutuallyExclusiveUpdates }),
       });
       return response.ok;
     } catch (e) {
@@ -118,32 +140,13 @@ export function useEventStream() {
   }, []);
 
   const showSlide = useCallback(async (slideId: string) => {
-    try {
-      const response = await fetch('/api/event/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'showSlide', slideId }),
-      });
-      return response.ok;
-    } catch (e) {
-      console.error('Error showing slide:', e);
-      return false;
-    }
-  }, []);
+    // Use updateState to get mutual exclusivity with other fullscreen states
+    return updateState({ currentSlide: slideId });
+  }, [updateState]);
 
   const hideSlide = useCallback(async () => {
-    try {
-      const response = await fetch('/api/event/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'hideSlide' }),
-      });
-      return response.ok;
-    } catch (e) {
-      console.error('Error hiding slide:', e);
-      return false;
-    }
-  }, []);
+    return updateState({ currentSlide: null });
+  }, [updateState]);
 
   return {
     ...eventData,
