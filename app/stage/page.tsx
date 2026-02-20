@@ -409,19 +409,44 @@ function SlideOverlay({ imageUrl, slideName, blur = 0 }: { imageUrl: string; sli
   );
 }
 
-// Google Slides Overlay for female guest intro - Native embed
+// Google Slides Overlay for female guest intro - Native embed (fullscreen 16:9)
 function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
   const [loading, setLoading] = useState(true);
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate scale to fill viewport while maintaining 16:9
+  useEffect(() => {
+    const calculateScale = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const slideAspect = 16 / 9;
+      const viewportAspect = vw / vh;
+      
+      // Scale to cover the viewport (like object-fit: cover)
+      if (viewportAspect > slideAspect) {
+        // Viewport is wider than slide - scale based on width
+        setScale(vw / (vh * slideAspect));
+      } else {
+        // Viewport is taller than slide - scale based on height
+        setScale((vh * slideAspect) / vw);
+      }
+    };
+    
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, []);
   
   // Google Slides embed URL - directly embeds the presentation
   // rm=minimal removes chrome, slide parameter goes to specific slide
   const embedUrl = `https://docs.google.com/presentation/d/${presentationId}/embed?rm=minimal&start=false&loop=false&slide=${guestId}`;
   
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-100">
+    <div ref={containerRef} className="fixed inset-0 z-50 overflow-hidden bg-black">
       {/* Loading spinner */}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-gradient-to-br from-pink-100 via-rose-50 to-pink-100">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-pink-400 border-t-transparent" />
             <div className="text-rose-600 text-lg">加载幻灯片中...</div>
@@ -429,13 +454,32 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
         </div>
       )}
       
-      {/* Google Slides iframe - full screen embed */}
-      <iframe
-        src={embedUrl}
-        className="w-full h-full border-0"
-        allowFullScreen
-        onLoad={() => setLoading(false)}
-      />
+      {/* Scaled iframe container - fills viewport */}
+      <div 
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        {/* 16:9 aspect ratio container */}
+        <div 
+          className="relative"
+          style={{
+            width: '100vw',
+            height: `${100 / (16/9)}vw`, // Height based on 16:9 ratio
+            maxHeight: '100vh',
+            maxWidth: `${100 * (16/9)}vh`, // Width based on 16:9 ratio
+          }}
+        >
+          <iframe
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full border-0"
+            allowFullScreen
+            onLoad={() => setLoading(false)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
