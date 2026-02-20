@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractPresentationId, fetchPresentation, PresentationInfo } from '@/lib/google-slides';
 import { put, head, del } from '@vercel/blob';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
+import { join } from 'path';
 
 const BLOB_PATH = 'google-slides/config.json';
+const LOCAL_CONFIG_DIR = join(process.cwd(), '.local-data');
+const LOCAL_CONFIG_FILE = join(LOCAL_CONFIG_DIR, 'google-slides-config.json');
+
+// Check if we're in local development (no Vercel Blob token)
+const isLocalDev = !process.env.BLOB_READ_WRITE_TOKEN;
 
 interface SlidesConfig {
   presentationUrl: string;
@@ -11,9 +18,48 @@ interface SlidesConfig {
   lastUpdated: number;
 }
 
+// Local file helpers for development
+function readLocalConfig(): SlidesConfig | null {
+  try {
+    if (existsSync(LOCAL_CONFIG_FILE)) {
+      return JSON.parse(readFileSync(LOCAL_CONFIG_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Failed to read local config:', e);
+  }
+  return null;
+}
+
+function writeLocalConfig(config: SlidesConfig): void {
+  if (!existsSync(LOCAL_CONFIG_DIR)) {
+    mkdirSync(LOCAL_CONFIG_DIR, { recursive: true });
+  }
+  writeFileSync(LOCAL_CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+function deleteLocalConfig(): void {
+  try {
+    if (existsSync(LOCAL_CONFIG_FILE)) {
+      unlinkSync(LOCAL_CONFIG_FILE);
+    }
+  } catch (e) {
+    console.error('Failed to delete local config:', e);
+  }
+}
+
 // GET - Get current Google Slides configuration
 export async function GET() {
   try {
+    // Local development: use file system
+    if (isLocalDev) {
+      const config = readLocalConfig();
+      if (config) {
+        return NextResponse.json({ configured: true, ...config });
+      }
+      return NextResponse.json({ configured: false });
+    }
+
+    // Production: use Vercel Blob
     const blobInfo = await head(BLOB_PATH);
     if (!blobInfo) {
       return NextResponse.json({ configured: false });
@@ -42,16 +88,20 @@ export async function POST(request: NextRequest) {
     
     // Action: sync - Re-fetch slides from existing config
     if (action === 'sync') {
-      const blobInfo = await head(BLOB_PATH);
-      if (!blobInfo) {
-        return NextResponse.json({ error: 'No presentation configured' }, { status: 400 });
+      let existingConfig: SlidesConfig | null = null;
+      
+      if (isLocalDev) {
+        existingConfig = readLocalConfig();
+      } else {
+        const blobInfo = await head(BLOB_PATH);
+        if (blobInfo) {
+          const response = await fetch(blobInfo.url);
+          existingConfig = await response.json();
+        }
       }
       
-      const existingResponse = await fetch(blobInfo.url);
-      const existingConfig: SlidesConfig = await existingResponse.json();
-      
-      if (!existingConfig.presentationId) {
-        return NextResponse.json({ error: 'No presentation ID' }, { status: 400 });
+      if (!existingConfig?.presentationId) {
+        return NextResponse.json({ error: 'No presentation configured' }, { status: 400 });
       }
       
       const presentation = await fetchPresentation(existingConfig.presentationId);
@@ -65,12 +115,16 @@ export async function POST(request: NextRequest) {
         lastUpdated: Date.now(),
       };
       
-      // Delete old and save new
-      await del(blobInfo.url);
-      await put(BLOB_PATH, JSON.stringify(newConfig, null, 2), {
-        access: 'public',
-        contentType: 'application/json',
-      });
+      if (isLocalDev) {
+        writeLocalConfig(newConfig);
+      } else {
+        const blobInfo = await head(BLOB_PATH);
+        if (blobInfo) await del(blobInfo.url);
+        await put(BLOB_PATH, JSON.stringify(newConfig, null, 2), {
+          access: 'public',
+          contentType: 'application/json',
+        });
+      }
       
       return NextResponse.json({
         success: true,
@@ -89,29 +143,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid Google Slides URL' }, { status: 400 });
     }
     
-    // Check if API key is configured
-    if (!process.env.GOOGLE_API_KEY) {
-      // Without API key, we can still try to use direct export URLs
-      // This works for publicly shared presentations
-      console.log('[GoogleSlides] No API key, using direct export URLs');
-      
-      const config: SlidesConfig = {
-        presentationUrl: url,
+    // Build config (without API key, we use direct export URLs)
+    const config: SlidesConfig = {
+      presentationUrl: url,
+      presentationId,
+      presentation: {
         presentationId,
-        presentation: {
-          presentationId,
-          title: 'Presentation',
-          slides: Array.from({ length: 12 }, (_, i) => ({
-            slideId: `slide-${i + 1}`,
-            pageNumber: i + 1,
-            imageUrl: `https://docs.google.com/presentation/d/${presentationId}/export/png?pageid=p${i}`,
-          })),
-          lastSynced: Date.now(),
-        },
-        lastUpdated: Date.now(),
-      };
-      
-      // Delete old config if exists
+        title: 'Presentation',
+        slides: Array.from({ length: 12 }, (_, i) => ({
+          slideId: `slide-${i + 1}`,
+          pageNumber: i + 1,
+          imageUrl: `https://docs.google.com/presentation/d/${presentationId}/export/png?pageid=p${i}`,
+        })),
+        lastSynced: Date.now(),
+      },
+      lastUpdated: Date.now(),
+    };
+    
+    // Save config
+    if (isLocalDev) {
+      writeLocalConfig(config);
+    } else {
       try {
         const existing = await head(BLOB_PATH);
         if (existing) await del(existing.url);
@@ -121,60 +173,33 @@ export async function POST(request: NextRequest) {
         access: 'public',
         contentType: 'application/json',
       });
-      
-      return NextResponse.json({
-        success: true,
-        presentationId,
-        message: 'Configured without API key - using direct export',
-        slideCount: 12,
-      });
     }
-    
-    // Fetch presentation with API
-    const presentation = await fetchPresentation(presentationId);
-    if (!presentation) {
-      return NextResponse.json({ 
-        error: 'Failed to fetch presentation. Make sure it is shared as "Anyone with the link can view"' 
-      }, { status: 400 });
-    }
-    
-    const config: SlidesConfig = {
-      presentationUrl: url,
-      presentationId,
-      presentation,
-      lastUpdated: Date.now(),
-    };
-    
-    // Delete old config if exists
-    try {
-      const existing = await head(BLOB_PATH);
-      if (existing) await del(existing.url);
-    } catch {}
-    
-    await put(BLOB_PATH, JSON.stringify(config, null, 2), {
-      access: 'public',
-      contentType: 'application/json',
-    });
     
     return NextResponse.json({
       success: true,
       presentationId,
-      title: presentation.title,
-      slideCount: presentation.slides.length,
+      message: isLocalDev ? '已保存到本地' : '已保存到云端',
+      slideCount: 12,
     });
     
   } catch (error) {
     console.error('Failed to configure Google Slides:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: `配置失败: ${error instanceof Error ? error.message : '未知错误'}` 
+    }, { status: 500 });
   }
 }
 
 // DELETE - Remove Google Slides configuration
 export async function DELETE() {
   try {
-    const existing = await head(BLOB_PATH);
-    if (existing) {
-      await del(existing.url);
+    if (isLocalDev) {
+      deleteLocalConfig();
+    } else {
+      const existing = await head(BLOB_PATH);
+      if (existing) {
+        await del(existing.url);
+      }
     }
     return NextResponse.json({ success: true });
   } catch (error) {
