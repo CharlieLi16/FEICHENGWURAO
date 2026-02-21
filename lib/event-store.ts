@@ -1,7 +1,7 @@
 // In-memory event state store with Vercel Blob persistence
 
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
-import { loadEventData, debouncedSave } from './event-persist';
+import { loadEventData, debouncedSave, saveEventData } from './event-persist';
 
 // Global state
 let eventState: EventState = { ...initialEventState };
@@ -65,9 +65,9 @@ async function ensureInitialized(): Promise<void> {
   await initPromise;
 }
 
-// Trigger debounced save - saves all state including runtime state
-function triggerSave(): void {
-  debouncedSave({ 
+// Get current data for persistence
+function getDataForSave() {
+  return {
     femaleGuests, 
     maleGuests, 
     slides,
@@ -82,7 +82,19 @@ function triggerSave(): void {
       useGoogleSlides: eventState.useGoogleSlides,
       // Don't persist transient UI state like showingProfile, vcrPlaying, etc.
     },
-  });
+  };
+}
+
+// IMMEDIATE save - for runtime state changes (phase, lights, etc.)
+// Ensures consistency across serverless instances
+function triggerSaveImmediate(): void {
+  saveEventData(getDataForSave());
+}
+
+// DEBOUNCED save - for guest data (less frequent changes)
+// Saves on write costs
+function triggerSaveDebounced(): void {
+  debouncedSave(getDataForSave());
 }
 
 // Subscribers for SSE
@@ -121,11 +133,10 @@ export function updateEventState(updates: Partial<EventState>): EventState {
   };
   notifySubscribers();
   
-  // Persist if important runtime state changed (phase, round, lights, etc.)
-  // Skip transient UI state like showingProfile, vcrPlaying
+  // IMMEDIATE save for runtime state changes - ensures consistency across instances
   const persistKeys = ['phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 'stageBackground', 'backgroundBlur', 'useGoogleSlides'];
   if (persistKeys.some(key => key in updates)) {
-    triggerSave();
+    triggerSaveImmediate();
   }
   return eventState;
 }
@@ -140,7 +151,7 @@ export function setLight(guestId: number, status: 'on' | 'off' | 'burst'): Event
     lastUpdated: Date.now(),
   };
   notifySubscribers();
-  triggerSave();  // Persist light changes
+  triggerSaveImmediate();  // Immediate save for runtime state
   return eventState;
 }
 
@@ -155,7 +166,7 @@ export function resetLights(): EventState {
     lastUpdated: Date.now(),
   };
   notifySubscribers();
-  triggerSave();  // Persist light reset
+  triggerSaveImmediate();  // Immediate save for runtime state
   return eventState;
 }
 
@@ -164,7 +175,7 @@ export function setFemaleGuests(guests: FemaleGuest[]): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSave();
+  triggerSaveDebounced();  // Debounced save for guest data (less frequent)
 }
 
 export function setMaleGuests(guests: MaleGuest[]): void {
@@ -172,7 +183,7 @@ export function setMaleGuests(guests: MaleGuest[]): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSave();
+  triggerSaveDebounced();  // Debounced save for guest data (less frequent)
 }
 
 export function getFemaleGuests(): FemaleGuest[] {
@@ -192,7 +203,7 @@ export function setSlides(newSlides: SlideSlot[]): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSave();
+  triggerSaveDebounced();  // Debounced save for slides
 }
 
 export function updateSlide(slideId: string, imageUrl: string | null): void {
@@ -202,7 +213,7 @@ export function updateSlide(slideId: string, imageUrl: string | null): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSave();
+  triggerSaveDebounced();  // Debounced save for slides
 }
 
 export function resetEvent(): void {
