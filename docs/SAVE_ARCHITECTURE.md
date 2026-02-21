@@ -75,25 +75,22 @@ put(BLOB_PATH, json, {
 ### 2. `lib/event-store.ts` - 状态管理层
 
 ```typescript
-// 全局内存状态
+// 全局内存状态 (初始为默认值，写操作前从 Blob 同步)
 let eventState: EventState;
 let femaleGuests: FemaleGuest[];
 let maleGuests: MaleGuest[];
 let slides: SlideSlot[];
 
-// 初始化 (从 Blob 加载)
-ensureInitialized() → loadEventData() → 填充内存
-
 // 获取数据
 getEventData()      → 返回内存数据 (快)
-getEventDataFresh() → 从 Blob 读取 (准确)
+getEventDataFresh() → 从 Blob 读取并同步内存 (准确)
 
-// 更新并保存
+// 更新并保存 (写操作前都会先 getEventDataFresh 同步)
 updateEventState()  → 更新内存 → triggerSaveImmediate()
 setLight()          → 更新内存 → triggerSaveImmediate()
-setFemaleGuests()   → 更新内存 → triggerSaveImmediate()
-setMaleGuests()     → 更新内存 → triggerSaveImmediate()
-setSlides()         → 更新内存 → triggerSaveDebounced()
+setFemaleGuests()   → getEventDataFresh() → 更新内存 → triggerSaveImmediate()
+setMaleGuests()     → getEventDataFresh() → 更新内存 → triggerSaveImmediate()
+setSlides()         → getEventDataFresh() → 更新内存 → triggerSaveDebounced()
 ```
 
 **立即保存 vs 防抖保存**:

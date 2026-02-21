@@ -52,11 +52,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
 
       case 'setSlides':
-        setSlides(params.slides as SlideSlot[]);
+        await setSlides(params.slides as SlideSlot[]);
         return NextResponse.json({ success: true });
 
       case 'updateSlide':
-        updateSlide(params.slideId, params.imageUrl);
+        await updateSlide(params.slideId, params.imageUrl);
         return NextResponse.json({ success: true });
 
       case 'showSlide':

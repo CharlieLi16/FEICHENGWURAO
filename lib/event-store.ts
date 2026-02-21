@@ -3,67 +3,11 @@
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
 import { loadEventData, debouncedSave, saveEventData } from './event-persist';
 
-// Global state
+// Global state (initialized with defaults, synced from Blob before each write)
 let eventState: EventState = { ...initialEventState };
 let femaleGuests: FemaleGuest[] = [];
 let maleGuests: MaleGuest[] = [];
 let slides: SlideSlot[] = [...defaultSlideSlots];
-
-// Track if we've loaded persisted data
-let isInitialized = false;
-let initPromise: Promise<void> | null = null;
-
-// Initialize from persisted data (called once on first access)
-async function ensureInitialized(): Promise<void> {
-  if (isInitialized) return;
-  
-  if (initPromise) {
-    await initPromise;
-    return;
-  }
-  
-  initPromise = (async () => {
-    try {
-      const savedData = await loadEventData();
-      if (savedData) {
-        femaleGuests = savedData.femaleGuests || [];
-        maleGuests = savedData.maleGuests || [];
-        slides = savedData.slides || [...defaultSlideSlots];
-        
-        // Restore full event state if available
-        if (savedData.eventState) {
-          eventState = {
-            ...eventState,
-            ...savedData.eventState,
-            lastUpdated: Date.now(),
-          };
-        } else {
-          // Legacy: restore stage background settings from old format
-          if (savedData.stageBackground) {
-            eventState.stageBackground = savedData.stageBackground;
-          }
-          if (savedData.backgroundBlur !== undefined) {
-            eventState.backgroundBlur = savedData.backgroundBlur;
-          }
-        }
-        
-        console.log('[EventStore] Restored data:', {
-          femaleGuests: femaleGuests.length,
-          maleGuests: maleGuests.length,
-          slides: slides.length,
-          phase: eventState.phase,
-          currentRound: eventState.currentRound,
-          currentMaleGuest: eventState.currentMaleGuest,
-        });
-      }
-    } catch (error) {
-      console.error('[EventStore] Failed to load persisted data:', error);
-    }
-    isInitialized = true;
-  })();
-  
-  await initPromise;
-}
 
 // Get current data for persistence
 function getDataForSave() {
@@ -201,6 +145,9 @@ function maleGuestHasContent(g: MaleGuest): boolean {
 }
 
 export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
+  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
+  await getEventDataFresh();
+  
   // Protection: refuse to overwrite non-empty data with completely empty data
   const newHasContent = guests.some(femaleGuestHasContent);
   const currentHasContent = femaleGuests.some(femaleGuestHasContent);
@@ -218,6 +165,9 @@ export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
 }
 
 export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
+  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
+  await getEventDataFresh();
+  
   // Log for debugging
   const newHasContent = guests.some(maleGuestHasContent);
   const currentHasContent = maleGuests.some(maleGuestHasContent);
@@ -262,7 +212,10 @@ export function getSlides(): SlideSlot[] {
   return slides;
 }
 
-export function setSlides(newSlides: SlideSlot[]): void {
+export async function setSlides(newSlides: SlideSlot[]): Promise<void> {
+  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
+  await getEventDataFresh();
+  
   slides = newSlides;
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
@@ -270,7 +223,10 @@ export function setSlides(newSlides: SlideSlot[]): void {
   triggerSaveDebounced();  // Debounced save for slides
 }
 
-export function updateSlide(slideId: string, imageUrl: string | null): void {
+export async function updateSlide(slideId: string, imageUrl: string | null): Promise<void> {
+  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
+  await getEventDataFresh();
+  
   slides = slides.map(slide => 
     slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
   );
