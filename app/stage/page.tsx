@@ -771,7 +771,7 @@ function HeartRevealAnimation({
                   zIndex: (isHighlighted || isStopped) ? 30 : 10,
                 }}
               >
-                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 transition-all duration-300 ${
+                <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${
                   (isHighlighted || isStopped)
                     ? 'border-rose-400 shadow-[0_0_40px_rgba(251,113,133,0.9)]' 
                     : isEligible 
