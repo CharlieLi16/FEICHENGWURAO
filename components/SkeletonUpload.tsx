@@ -38,11 +38,29 @@ export default function SkeletonUpload({
     'auto': 'min-h-[120px]',
   };
 
+  // Delete old blob from storage (fire-and-forget)
+  const deleteOldBlob = useCallback(async (oldUrl: string | undefined) => {
+    if (!oldUrl || !oldUrl.includes('blob.vercel-storage.com')) return;
+    try {
+      await fetch('/api/blob/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: oldUrl }),
+      });
+      console.log('[SkeletonUpload] Deleted old blob:', oldUrl);
+    } catch (e) {
+      console.warn('[SkeletonUpload] Failed to delete old blob:', e);
+    }
+  }, []);
+
   // Handle file upload - uses client-side direct upload to bypass 4.5MB limit
   const uploadFile = useCallback(async (file: File) => {
     setUploading(true);
     setProgress(0);
     setError(null);
+
+    // Store old value for cleanup
+    const oldValue = value;
 
     try {
       // Generate unique filename
@@ -64,6 +82,9 @@ export default function SkeletonUpload({
 
       console.log('[SkeletonUpload] Upload success:', blob.url);
       
+      // Delete old blob after successful upload
+      deleteOldBlob(oldValue);
+      
       // Short delay to show 100%
       setTimeout(() => {
         onChange(blob.url);
@@ -76,7 +97,7 @@ export default function SkeletonUpload({
       setUploading(false);
       setProgress(0);
     }
-  }, [onChange]);
+  }, [onChange, value, deleteOldBlob]);
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,8 +131,9 @@ export default function SkeletonUpload({
     }
   };
 
-  // Handle delete
+  // Handle delete - also removes from Blob storage
   const handleDelete = () => {
+    deleteOldBlob(value);
     onChange(null);
   };
 
