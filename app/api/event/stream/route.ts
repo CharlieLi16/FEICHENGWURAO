@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
-import { getEventData, getEventDataFresh } from '@/lib/event-store';
+import { getEventDataFresh } from '@/lib/event-store';
 
 // SSE endpoint for real-time updates
+// Polls Blob directly to ensure cross-instance consistency
 export async function GET(request: NextRequest) {
   // Load fresh data from Blob before starting stream
   const initialData = await getEventDataFresh();
@@ -18,10 +19,11 @@ export async function GET(request: NextRequest) {
         encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`)
       );
 
-      // Poll for updates every 100ms (more responsive than typical polling)
-      intervalId = setInterval(() => {
+      // Poll Blob every 500ms for cross-instance updates
+      // (More reliable than in-memory polling across serverless instances)
+      intervalId = setInterval(async () => {
         try {
-          const data = getEventData();
+          const data = await getEventDataFresh();  // Always read from Blob
           // Only send if state has changed
           if (data.state.lastUpdated > lastUpdated) {
             lastUpdated = data.state.lastUpdated;
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
         } catch (e) {
           console.error('SSE error:', e);
         }
-      }, 100);
+      }, 500);  // 500ms - balance between responsiveness and Blob read costs
     },
     cancel() {
       if (intervalId) {
