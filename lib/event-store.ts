@@ -101,17 +101,7 @@ function triggerSaveDebounced(): void {
 type Subscriber = (data: EventData) => void;
 const subscribers: Set<Subscriber> = new Set();
 
-export async function getEventDataAsync(): Promise<EventData> {
-  await ensureInitialized();
-  return {
-    state: eventState,
-    femaleGuests,
-    maleGuests,
-    slides,
-  };
-}
-
-// Force refresh from Blob - use for GET requests to ensure consistency
+// Always fetch fresh from Blob - ensures consistency across serverless instances
 export async function getEventDataFresh(): Promise<EventData> {
   try {
     const savedData = await loadEventData();

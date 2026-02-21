@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
-import { getEventData, getEventDataAsync } from '@/lib/event-store';
+import { getEventData, getEventDataFresh } from '@/lib/event-store';
 
 // SSE endpoint for real-time updates
 export async function GET(request: NextRequest) {
-  // Ensure data is loaded from Blob before starting stream
-  const initialData = await getEventDataAsync();
+  // Load fresh data from Blob before starting stream
+  const initialData = await getEventDataFresh();
   
   const encoder = new TextEncoder();
   
