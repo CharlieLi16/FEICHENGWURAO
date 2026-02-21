@@ -1061,32 +1061,37 @@ export default function StagePage() {
         <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
       ) : null}
 
-      {/* Header - Time display (toggles with H key) */}
-      <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-end">
-          <div className="text-right">
-            <div className="text-3xl md:text-5xl font-mono font-bold text-pink-400">
-              {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-            <div className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
-              {connected ? '● 已连接' : '○ 连接中...'}
+      {/* Header - Time display (hidden during heart reveal) */}
+      {state.phase !== 'heart_reveal' && (
+        <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className="max-w-7xl mx-auto flex items-center justify-end">
+            <div className="text-right">
+              <div className="text-3xl md:text-5xl font-mono font-bold text-pink-400">
+                {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
+                {connected ? '● 已连接' : '○ 连接中...'}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      {/* Phase Title - Press H to toggle */}
-      <div className={`text-center py-4 md:py-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 py-0 overflow-hidden'}`}>
-        <div className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
-          <span className="text-sm text-gray-400 mr-2">第 {state.currentRound} 轮</span>
-          <span className="text-xl md:text-2xl font-bold">{phaseNames[state.phase]}</span>
+      {/* Phase Title - hidden during heart reveal */}
+      {state.phase !== 'heart_reveal' && (
+        <div className={`text-center py-4 md:py-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 py-0 overflow-hidden'}`}>
+          <div className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
+            <span className="text-sm text-gray-400 mr-2">第 {state.currentRound} 轮</span>
+            <span className="text-xl md:text-2xl font-bold">{phaseNames[state.phase]}</span>
+          </div>
+          {state.message && state.message !== phaseNames[state.phase] && (
+            <p className="mt-2 text-gray-300">{state.message}</p>
+          )}
         </div>
-        {state.message && state.message !== phaseNames[state.phase] && (
-          <p className="mt-2 text-gray-300">{state.message}</p>
-        )}
-      </div>
+      )}
 
-      {/* Main Content */}
+      {/* Main Content - hidden during heart reveal (animation takes over) */}
+      {state.phase !== 'heart_reveal' && (
       <main className="relative z-10 px-4 md:px-8 pb-8">
         {/* Light Status Summary */}
         <div className="text-center mb-6">
@@ -1198,6 +1203,7 @@ export default function StagePage() {
           </div>
         )}
       </main>
+      )}
 
       {/* Connection error toast */}
       {error && (
