@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FemaleGuest, MaleGuest } from '@/lib/event-state';
 import Link from 'next/link';
 import SkeletonUpload from '@/components/SkeletonUpload';
@@ -152,10 +152,44 @@ export default function SetupPage() {
     );
   };
 
+  // Track if we need to auto-save (for VCR uploads)
+  const pendingAutoSave = useRef(false);
+
   const updateMaleGuest = (id: number, field: keyof MaleGuest, value: string) => {
-    setMaleGuests((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, [field]: value } : g))
-    );
+    setMaleGuests((prev) => {
+      const updated = prev.map((g) => (g.id === id ? { ...g, [field]: value } : g));
+      
+      // Auto-save for VCR URL changes (important, easy to forget)
+      if (field === 'vcr1Url' || field === 'vcr2Url') {
+        pendingAutoSave.current = true;
+        // Delay to batch multiple changes
+        setTimeout(() => {
+          if (pendingAutoSave.current) {
+            pendingAutoSave.current = false;
+            autoSaveMaleGuests(updated);
+          }
+        }, 1000);
+      }
+      
+      return updated;
+    });
+  };
+
+  // Auto-save just male guests (for VCR)
+  const autoSaveMaleGuests = async (guests: MaleGuest[]) => {
+    try {
+      console.log('[AutoSave] Saving male guests (VCR changed)');
+      await fetch('/api/event/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setMaleGuests', guests }),
+      });
+      setMessage('✅ VCR 已自动保存');
+      setTimeout(() => setMessage(''), 2000);
+    } catch (e) {
+      console.error('[AutoSave] Failed:', e);
+      setMessage('⚠️ VCR 自动保存失败，请手动保存');
+    }
   };
 
   // Save all data
