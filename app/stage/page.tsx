@@ -467,6 +467,259 @@ function QuestionBubble({ question, guestName }: { question: string; guestName: 
   );
 }
 
+// Heart Reveal Animation - Spinning wheel that reveals the heart choice
+function HeartRevealAnimation({ 
+  heartChoice, 
+  femaleGuests,
+  lights 
+}: { 
+  heartChoice: number;
+  femaleGuests: FemaleGuest[];
+  lights: Record<number, LightStatus>;
+}) {
+  const [animationPhase, setAnimationPhase] = useState<'spinning' | 'slowing' | 'stopped' | 'reveal'>('spinning');
+  const [currentHighlight, setCurrentHighlight] = useState(1);
+  const [showFinalCard, setShowFinalCard] = useState(false);
+  
+  // Only show guests with lights on (eligible candidates)
+  const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
+  const eligibleIds = eligibleGuests.map(g => g.id);
+  
+  // Animation timeline
+  useEffect(() => {
+    if (eligibleIds.length === 0) return;
+    
+    let timeouts: NodeJS.Timeout[] = [];
+    let intervals: NodeJS.Timeout[] = [];
+    
+    // Phase 1: Fast spinning (0-2s) - 80ms intervals
+    const fastInterval = setInterval(() => {
+      setCurrentHighlight(prev => {
+        const currentIndex = eligibleIds.indexOf(prev);
+        const nextIndex = (currentIndex + 1) % eligibleIds.length;
+        return eligibleIds[nextIndex];
+      });
+    }, 80);
+    intervals.push(fastInterval);
+    
+    // Phase 2: Medium speed (2-4s) - 150ms intervals
+    timeouts.push(setTimeout(() => {
+      clearInterval(fastInterval);
+      setAnimationPhase('slowing');
+      const mediumInterval = setInterval(() => {
+        setCurrentHighlight(prev => {
+          const currentIndex = eligibleIds.indexOf(prev);
+          const nextIndex = (currentIndex + 1) % eligibleIds.length;
+          return eligibleIds[nextIndex];
+        });
+      }, 150);
+      intervals.push(mediumInterval);
+      
+      // Phase 3: Slow (4-5s) - 300ms intervals
+      timeouts.push(setTimeout(() => {
+        clearInterval(mediumInterval);
+        const slowInterval = setInterval(() => {
+          setCurrentHighlight(prev => {
+            const currentIndex = eligibleIds.indexOf(prev);
+            const nextIndex = (currentIndex + 1) % eligibleIds.length;
+            return eligibleIds[nextIndex];
+          });
+        }, 300);
+        intervals.push(slowInterval);
+        
+        // Phase 4: Very slow (5-6s) - 500ms intervals, approach target
+        timeouts.push(setTimeout(() => {
+          clearInterval(slowInterval);
+          
+          // Calculate steps to land on heartChoice
+          const targetIndex = eligibleIds.indexOf(heartChoice);
+          let currentIndex = eligibleIds.indexOf(currentHighlight);
+          
+          // Ensure we have at least 3 more steps
+          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
+          let step = 0;
+          
+          const finalInterval = setInterval(() => {
+            step++;
+            setCurrentHighlight(prev => {
+              const idx = eligibleIds.indexOf(prev);
+              const nextIdx = (idx + 1) % eligibleIds.length;
+              return eligibleIds[nextIdx];
+            });
+            
+            if (step >= stepsNeeded) {
+              clearInterval(finalInterval);
+              setCurrentHighlight(heartChoice);
+              setAnimationPhase('stopped');
+              
+              // Phase 5: Reveal (6-7s) - Show final card
+              timeouts.push(setTimeout(() => {
+                setAnimationPhase('reveal');
+                setShowFinalCard(true);
+              }, 500));
+            }
+          }, 500);
+          intervals.push(finalInterval);
+        }, 1000));
+      }, 1000));
+    }, 2000));
+    
+    return () => {
+      timeouts.forEach(t => clearTimeout(t));
+      intervals.forEach(i => clearInterval(i));
+    };
+  }, [eligibleIds.length, heartChoice]);
+  
+  const heartGuest = femaleGuests.find(g => g.id === heartChoice);
+  const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-rose-900/95 via-pink-900/95 to-purple-900/95 backdrop-blur-sm flex items-center justify-center overflow-hidden">
+      {/* Animated background hearts */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute text-4xl animate-pulse opacity-20"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${2 + Math.random() * 2}s`,
+            }}
+          >
+            💕
+          </div>
+        ))}
+      </div>
+      
+      {/* Title */}
+      <div className="absolute top-8 left-0 right-0 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
+          💕 心动女生揭晓 💕
+        </h1>
+        <p className="text-rose-300 text-lg">
+          {animationPhase === 'reveal' ? '心动女生是...' : '谁是他的心动女生？'}
+        </p>
+      </div>
+      
+      {/* Spinning wheel of candidates */}
+      {!showFinalCard && (
+        <div className="relative">
+          {/* Circular arrangement of candidates */}
+          <div className="relative w-[500px] h-[500px] md:w-[600px] md:h-[600px]">
+            {eligibleGuests.map((guest, index) => {
+              const angle = (index / eligibleGuests.length) * 2 * Math.PI - Math.PI / 2;
+              const radius = 200; // Distance from center
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+              const isHighlighted = currentHighlight === guest.id;
+              const guestPhotos = getGuestPhotos(guest);
+              
+              return (
+                <div
+                  key={guest.id}
+                  className={`absolute transition-all duration-150 ${
+                    isHighlighted 
+                      ? 'scale-125 z-20' 
+                      : 'scale-100 z-10 opacity-60'
+                  }`}
+                  style={{
+                    left: `calc(50% + ${x}px - 50px)`,
+                    top: `calc(50% + ${y}px - 50px)`,
+                  }}
+                >
+                  <div className={`w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 transition-all ${
+                    isHighlighted 
+                      ? 'border-rose-400 shadow-[0_0_30px_rgba(251,113,133,0.8)]' 
+                      : 'border-white/30'
+                  }`}>
+                    {guestPhotos[0] ? (
+                      <img 
+                        src={guestPhotos[0]} 
+                        alt={guest.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-2xl font-bold text-white">
+                        {guest.id}
+                      </div>
+                    )}
+                  </div>
+                  {isHighlighted && (
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+                        {guest.nickname || guest.name}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Center heart indicator */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <div className={`text-6xl md:text-7xl transition-all ${
+                animationPhase === 'stopped' ? 'animate-bounce' : 'animate-pulse'
+              }`}>
+                💖
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Final reveal card */}
+      {showFinalCard && heartGuest && (
+        <div className="animate-in zoom-in fade-in duration-700 text-center">
+          {/* Large photo */}
+          <div className="relative inline-block mb-6">
+            <div className="w-48 h-48 md:w-64 md:h-64 rounded-full overflow-hidden border-8 border-rose-400 shadow-[0_0_60px_rgba(251,113,133,0.6)] mx-auto">
+              {photos[0] ? (
+                <img 
+                  src={photos[0]} 
+                  alt={heartGuest.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-6xl font-bold text-white">
+                  {heartGuest.id}
+                </div>
+              )}
+            </div>
+            {/* Floating hearts around photo */}
+            <div className="absolute -top-4 -left-4 text-4xl animate-bounce">💕</div>
+            <div className="absolute -top-4 -right-4 text-4xl animate-bounce" style={{ animationDelay: '0.2s' }}>💗</div>
+            <div className="absolute -bottom-4 -left-4 text-4xl animate-bounce" style={{ animationDelay: '0.4s' }}>💖</div>
+            <div className="absolute -bottom-4 -right-4 text-4xl animate-bounce" style={{ animationDelay: '0.6s' }}>❤️</div>
+          </div>
+          
+          {/* Name and info */}
+          <div className="bg-white/10 backdrop-blur-md rounded-3xl px-12 py-8 max-w-lg mx-auto">
+            <div className="text-rose-300 text-xl mb-2">心动女生是</div>
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-4">
+              {heartGuest.nickname || heartGuest.name}
+            </h2>
+            <div className="text-2xl text-rose-200">
+              {heartGuest.id}号女嘉宾
+            </div>
+            {heartGuest.school && (
+              <div className="text-lg text-rose-300/80 mt-2">
+                {heartGuest.school}
+              </div>
+            )}
+          </div>
+          
+          {/* Celebration text */}
+          <div className="mt-8 text-2xl text-rose-200 animate-pulse">
+            ✨ 心动的感觉，就是这样 ✨
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Google Slides Overlay for female guest intro - Native embed (fullscreen 16:9)
 function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
   const [loading, setLoading] = useState(true);
@@ -670,6 +923,15 @@ export default function StagePage() {
         <QuestionBubble 
           question={currentMale.question || '请问你对另一半有什么期待？'} 
           guestName={currentMale.nickname || currentMale.name} 
+        />
+      )}
+
+      {/* Heart Reveal Animation - shows during "心动女生揭晓" phase */}
+      {state.phase === 'heart_reveal' && state.heartChoice && (
+        <HeartRevealAnimation
+          heartChoice={state.heartChoice}
+          femaleGuests={femaleGuests}
+          lights={state.lights}
         />
       )}
 

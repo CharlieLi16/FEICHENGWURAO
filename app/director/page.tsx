@@ -781,6 +781,75 @@ export default function DirectorPage() {
             </div>
           )}
 
+          {/* Heart Choice Selector - Private/Secret */}
+          <div className="bg-gradient-to-br from-rose-900/50 to-pink-900/50 rounded-xl p-4 border border-rose-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">💕 心动女嘉宾</h2>
+              <span className="text-xs px-2 py-1 bg-rose-500/20 text-rose-300 rounded-full">
+                🔒 私密
+              </span>
+            </div>
+            
+            {/* Current selection status */}
+            {state.heartChoice ? (
+              <div className="mb-3 p-3 bg-rose-500/20 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-rose-300 text-sm">已选择：</span>
+                    <span className="font-bold text-lg ml-2">
+                      {state.heartChoice}号 {femaleGuests.find(g => g.id === state.heartChoice)?.nickname || femaleGuests.find(g => g.id === state.heartChoice)?.name || ''}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => updateState({ heartChoice: null })}
+                    className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded"
+                  >
+                    清除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-3 p-3 bg-gray-700/50 rounded-lg text-center text-gray-400 text-sm">
+                点击选择心动女嘉宾（舞台不可见）
+              </div>
+            )}
+
+            {/* Guest selection grid - 3x4 layout */}
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((id) => {
+                const guest = femaleGuests.find(g => g.id === id);
+                const isSelected = state.heartChoice === id;
+                const isLightOn = state.lights[id] !== 'off';
+                return (
+                  <button
+                    key={id}
+                    onClick={() => updateState({ heartChoice: isSelected ? null : id })}
+                    className={`relative py-2 rounded-lg transition-all text-xs ${
+                      isSelected
+                        ? 'bg-rose-500 ring-2 ring-rose-300 shadow-lg shadow-rose-500/30'
+                        : isLightOn
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-800/50 text-gray-500'
+                    }`}
+                  >
+                    {isSelected && (
+                      <span className="absolute -top-1 -right-1 text-lg animate-pulse">❤️</span>
+                    )}
+                    <div className="font-bold">#{id}</div>
+                    <div className="truncate px-1 opacity-70">
+                      {guest?.nickname || guest?.name || '-'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Info text */}
+            <div className="mt-3 text-xs text-gray-400 text-center">
+              进入「心动女生揭晓」阶段时，舞台将播放揭晓动画
+            </div>
+          </div>
+
           {/* Quick Links */}
           <div className="bg-gray-800 rounded-xl p-4">
             <h2 className="text-lg font-semibold mb-3">快捷链接</h2>
