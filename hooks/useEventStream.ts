@@ -68,18 +68,6 @@ export function useEventStream() {
   
   // Ref to track if we should show operation status
   const operationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Optimistic update helper - immediately update local state
-  const optimisticUpdate = useCallback((updates: Partial<EventState>) => {
-    setEventData(prev => ({
-      ...prev,
-      state: {
-        ...prev.state,
-        ...updates,
-        lastUpdated: Date.now(),
-      }
-    }));
-  }, []);
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -204,7 +192,7 @@ export function useEventStream() {
 
   // Actions to update state
   // Automatically handles mutual exclusivity for fullscreen overlays
-  // Uses optimistic updates for immediate UI response
+  // Uses optimistic updates for immediate UI response, with rollback on failure
   const updateState = useCallback(async (updates: Partial<EventState>) => {
     // Mutual exclusivity: when one fullscreen state is activated, clear others
     const mutuallyExclusiveUpdates = { ...updates };
@@ -227,11 +215,18 @@ export function useEventStream() {
       mutuallyExclusiveUpdates.vcrPlaying = false;
     }
     
-    // OPTIMISTIC UPDATE: Immediately update local state for responsive UI
-    optimisticUpdate(mutuallyExclusiveUpdates);
+    // Save previous state for rollback
+    let previousState: EventState | null = null;
+    setEventData(prev => {
+      previousState = prev.state;
+      return {
+        ...prev,
+        state: { ...prev.state, ...mutuallyExclusiveUpdates, lastUpdated: Date.now() }
+      };
+    });
     
-    // Then send to server (SSE will eventually sync all clients)
-    return executeOperation(async () => {
+    // Send to server
+    const success = await executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,20 +234,31 @@ export function useEventStream() {
       });
       return response.ok;
     });
-  }, [executeOperation, optimisticUpdate]);
+    
+    // Rollback on failure
+    if (!success && previousState) {
+      setEventData(prev => ({ ...prev, state: previousState! }));
+    }
+    
+    return success;
+  }, [executeOperation]);
 
   const setLight = useCallback(async (guestId: number, status: 'on' | 'off' | 'burst') => {
-    // Optimistic update for light change
-    setEventData(prev => ({
-      ...prev,
-      state: {
-        ...prev.state,
-        lights: { ...prev.state.lights, [guestId]: status },
-        lastUpdated: Date.now(),
-      }
-    }));
+    // Save previous lights for rollback
+    let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    setEventData(prev => {
+      previousLights = prev.state.lights;
+      return {
+        ...prev,
+        state: {
+          ...prev.state,
+          lights: { ...prev.state.lights, [guestId]: status },
+          lastUpdated: Date.now(),
+        }
+      };
+    });
     
-    return executeOperation(async () => {
+    const success = await executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -260,24 +266,38 @@ export function useEventStream() {
       });
       return response.ok;
     });
+    
+    // Rollback on failure
+    if (!success && previousLights) {
+      setEventData(prev => ({
+        ...prev,
+        state: { ...prev.state, lights: previousLights! }
+      }));
+    }
+    
+    return success;
   }, [executeOperation]);
 
   const resetLights = useCallback(async () => {
-    // Optimistic update for reset
-    setEventData(prev => ({
-      ...prev,
-      state: {
-        ...prev.state,
-        lights: {
-          1: 'on', 2: 'on', 3: 'on', 4: 'on',
-          5: 'on', 6: 'on', 7: 'on', 8: 'on',
-          9: 'on', 10: 'on', 11: 'on', 12: 'on',
-        },
-        lastUpdated: Date.now(),
-      }
-    }));
+    // Save previous lights for rollback
+    let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    setEventData(prev => {
+      previousLights = prev.state.lights;
+      return {
+        ...prev,
+        state: {
+          ...prev.state,
+          lights: {
+            1: 'on', 2: 'on', 3: 'on', 4: 'on',
+            5: 'on', 6: 'on', 7: 'on', 8: 'on',
+            9: 'on', 10: 'on', 11: 'on', 12: 'on',
+          },
+          lastUpdated: Date.now(),
+        }
+      };
+    });
     
-    return executeOperation(async () => {
+    const success = await executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -285,6 +305,16 @@ export function useEventStream() {
       });
       return response.ok;
     });
+    
+    // Rollback on failure
+    if (!success && previousLights) {
+      setEventData(prev => ({
+        ...prev,
+        state: { ...prev.state, lights: previousLights! }
+      }));
+    }
+    
+    return success;
   }, [executeOperation]);
 
   const resetEvent = useCallback(async () => {
