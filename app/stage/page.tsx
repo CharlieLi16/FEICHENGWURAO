@@ -24,7 +24,10 @@ function GuestLight({
   const isBurst = status === 'burst';
 
   return (
-    <div className={`relative flex flex-col items-center transition-all duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-60'}`}>
+    <div 
+      data-guest-id={guestId}
+      className={`relative flex flex-col items-center transition-all duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-60'}`}
+    >
       {/* Light glow effect */}
       <div 
         className={`absolute -inset-4 rounded-full blur-xl transition-all duration-500 ${isBurst ? 'animate-pulse' : ''}`}
@@ -468,7 +471,7 @@ function QuestionBubble({ question, guestName }: { question: string; guestName: 
 }
 
 // Heart Reveal Animation - Spinning wheel that reveals the heart choice
-// With entrance animation: guests float from grid positions to form a circle
+// With entrance animation: guests float from their ACTUAL grid positions to form a circle
 function HeartRevealAnimation({ 
   heartChoice, 
   femaleGuests,
@@ -485,6 +488,10 @@ function HeartRevealAnimation({
   const [bgOpacity, setBgOpacity] = useState(0);
   const [formCircle, setFormCircle] = useState(false);
   
+  // Store the initial positions of each guest from the DOM
+  const [initialPositions, setInitialPositions] = useState<Record<number, { x: number; y: number }>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   // Use ref to track current highlight for closure access
   const currentHighlightRef = useRef(currentHighlight);
   useEffect(() => {
@@ -495,28 +502,48 @@ function HeartRevealAnimation({
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
   
-  // Grid positions for 12 guests (matching stage layout: 2 rows of 6)
-  const getGridPosition = (guestId: number) => {
-    // Row 1: guests 1-6, Row 2: guests 7-12
-    const row = guestId <= 6 ? 0 : 1;
-    const col = ((guestId - 1) % 6);
-    // Calculate percentage positions to match stage grid
-    const x = 10 + col * 16; // 10% margin, 16% spacing
-    const y = row === 0 ? 25 : 60; // Top row at 25%, bottom at 60%
-    return { x, y };
-  };
+  // Capture initial positions from the actual stage lights on mount
+  useEffect(() => {
+    // Read positions from the actual GuestLight elements on the stage
+    const positions: Record<number, { x: number; y: number }> = {};
+    for (let id = 1; id <= 12; id++) {
+      // Find the actual light element on the stage
+      const lightElement = document.querySelector(`[data-guest-id="${id}"]`);
+      if (lightElement) {
+        const rect = lightElement.getBoundingClientRect();
+        positions[id] = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        };
+      } else {
+        // Fallback: calculate approximate position based on grid layout
+        const row = id <= 6 ? 0 : 1;
+        const col = ((id - 1) % 6);
+        const containerWidth = window.innerWidth;
+        const gridWidth = Math.min(containerWidth - 64, 1152); // max-w-6xl = 1152px, minus padding
+        const startX = (containerWidth - gridWidth) / 2;
+        const cellWidth = gridWidth / 6;
+        positions[id] = {
+          x: startX + col * cellWidth + cellWidth / 2,
+          y: row === 0 ? window.innerHeight * 0.35 : window.innerHeight * 0.55,
+        };
+      }
+    }
+    setInitialPositions(positions);
+  }, []);
   
-  // Circle position - use viewport height (vh) units for true circle
-  // Returns pixel offsets from center
+  // Circle position - pixel-based for true circle
   const getCirclePosition = (guestId: number) => {
     const eligibleIndex = eligibleIds.indexOf(guestId);
-    if (eligibleIndex === -1) return { xPx: 0, yPx: 0 }; // Center if not eligible
+    if (eligibleIndex === -1) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
-    // Use fixed pixel radius based on viewport height for true circle
-    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.3; // 30% of smaller dimension
-    const xPx = Math.cos(angle) * radius;
-    const yPx = Math.sin(angle) * radius;
-    return { xPx, yPx };
+    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.28;
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    return {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+    };
   };
   
   // Entrance animation timeline
@@ -691,45 +718,38 @@ function HeartRevealAnimation({
         </p>
       </div>
       
-      {/* Candidates - animate from grid to circle */}
-      {!showFinalCard && (
-        <div className="absolute inset-0">
-          {/* All 12 guests - eligible ones animate to circle, ineligible fade out */}
+      {/* Candidates - animate from actual grid positions to circle */}
+      {!showFinalCard && Object.keys(initialPositions).length > 0 && (
+        <div ref={containerRef} className="absolute inset-0">
+          {/* All 12 guests - start at their actual stage positions, animate to circle */}
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((guestId) => {
             const guest = femaleGuests.find(g => g.id === guestId);
             const isEligible = lights[guestId] !== 'off';
-            const gridPos = getGridPosition(guestId);
+            const startPos = initialPositions[guestId] || { x: 0, y: 0 };
             const circlePos = getCirclePosition(guestId);
             const guestPhotos = guest ? getGuestPhotos(guest) : [];
             const isHighlighted = isSpinning && currentHighlight === guestId;
             const isStopped = animationPhase === 'stopped' && currentHighlight === guestId;
             
-            // Ineligible guests fade out and shrink
+            // Ineligible guests fade out and shrink when forming circle
             const scale = !isEligible && formCircle ? 0 : 
                          (isHighlighted || isStopped) ? 1.3 : 1;
             const opacity = !isEligible && formCircle ? 0 : 
                            (isHighlighted || isStopped) ? 1 : 
                            isSpinning ? 0.6 : 1;
             
-            // Position: grid uses percentages, circle uses center + pixel offset
-            const positionStyle = formCircle && isEligible
-              ? {
-                  left: '50%',
-                  top: '50%',
-                  transform: `translate(calc(-50% + ${circlePos.xPx}px), calc(-50% + ${circlePos.yPx}px)) scale(${scale})`,
-                }
-              : {
-                  left: `${gridPos.x}%`,
-                  top: `${gridPos.y}%`,
-                  transform: `translate(-50%, -50%) scale(${scale})`,
-                };
+            // Position: start at captured grid position, animate to circle
+            const currentX = formCircle && isEligible ? circlePos.x : startPos.x;
+            const currentY = formCircle && isEligible ? circlePos.y : startPos.y;
             
             return (
               <div
                 key={guestId}
                 className="absolute transition-all"
                 style={{
-                  ...positionStyle,
+                  left: currentX,
+                  top: currentY,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
                   opacity: opacity,
                   transitionDuration: formCircle ? '1500ms' : '300ms',
                   transitionTimingFunction: formCircle ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'ease-out',
@@ -1061,37 +1081,32 @@ export default function StagePage() {
         <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
       ) : null}
 
-      {/* Header - Time display (hidden during heart reveal) */}
-      {state.phase !== 'heart_reveal' && (
-        <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="max-w-7xl mx-auto flex items-center justify-end">
-            <div className="text-right">
-              <div className="text-3xl md:text-5xl font-mono font-bold text-pink-400">
-                {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-              </div>
-              <div className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
-                {connected ? '● 已连接' : '○ 连接中...'}
-              </div>
+      {/* Header - Time display (toggles with H key) */}
+      <header className={`relative z-10 p-4 md:p-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-end">
+          <div className="text-right">
+            <div className="text-3xl md:text-5xl font-mono font-bold text-pink-400">
+              {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <div className={`text-sm ${connected ? 'text-green-400' : 'text-red-400'}`}>
+              {connected ? '● 已连接' : '○ 连接中...'}
             </div>
           </div>
-        </header>
-      )}
-
-      {/* Phase Title - hidden during heart reveal */}
-      {state.phase !== 'heart_reveal' && (
-        <div className={`text-center py-4 md:py-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 py-0 overflow-hidden'}`}>
-          <div className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
-            <span className="text-sm text-gray-400 mr-2">第 {state.currentRound} 轮</span>
-            <span className="text-xl md:text-2xl font-bold">{phaseNames[state.phase]}</span>
-          </div>
-          {state.message && state.message !== phaseNames[state.phase] && (
-            <p className="mt-2 text-gray-300">{state.message}</p>
-          )}
         </div>
-      )}
+      </header>
 
-      {/* Main Content - hidden during heart reveal (animation takes over) */}
-      {state.phase !== 'heart_reveal' && (
+      {/* Phase Title - Press H to toggle */}
+      <div className={`text-center py-4 md:py-6 transition-all duration-300 ${showRoundInfo ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 py-0 overflow-hidden'}`}>
+        <div className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-8 py-3">
+          <span className="text-sm text-gray-400 mr-2">第 {state.currentRound} 轮</span>
+          <span className="text-xl md:text-2xl font-bold">{phaseNames[state.phase]}</span>
+        </div>
+        {state.message && state.message !== phaseNames[state.phase] && (
+          <p className="mt-2 text-gray-300">{state.message}</p>
+        )}
+      </div>
+
+      {/* Main Content */}
       <main className="relative z-10 px-4 md:px-8 pb-8">
         {/* Light Status Summary */}
         <div className="text-center mb-6">
@@ -1203,7 +1218,6 @@ export default function StagePage() {
           </div>
         )}
       </main>
-      )}
 
       {/* Connection error toast */}
       {error && (
