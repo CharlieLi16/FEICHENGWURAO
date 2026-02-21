@@ -41,19 +41,56 @@ const soundEffects = [
   { name: 'uhoh', label: 'Uh Oh', emoji: '😬', color: 'bg-rose-500' },
 ] as const;
 
+// Operation status Toast
+function OperationToast({ status }: { status: 'idle' | 'loading' | 'success' | 'error' }) {
+  if (status === 'idle') return null;
+  
+  return (
+    <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2 ${
+      status === 'loading' ? 'bg-blue-500/90' :
+      status === 'success' ? 'bg-green-500/90' :
+      'bg-red-500/90'
+    }`}>
+      <div className="flex items-center gap-2 text-white">
+        {status === 'loading' && (
+          <>
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span>处理中...</span>
+          </>
+        )}
+        {status === 'success' && (
+          <>
+            <span>✓</span>
+            <span>操作成功</span>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <span>✕</span>
+            <span>操作失败，请重试</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DirectorPage() {
   const { 
     state, 
     femaleGuests, 
     maleGuests,
     slides,
-    connected, 
+    connected,
+    operationStatus,
+    reconnectCountdown,
     updateState, 
     setLight, 
     resetLights, 
     resetEvent,
     showSlide,
     hideSlide,
+    forceRefresh,
   } = useEventStream();
   const { play, setMasterVolume, getMasterVolume, stopAll } = useSound();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -238,8 +275,20 @@ export default function DirectorPage() {
           <Link href="/director/setup" className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600">
             ⚙️ 设置
           </Link>
-          <div className={`px-3 py-1 rounded-full text-sm ${connected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-            {connected ? '● 已连接' : '○ 连接中...'}
+          <button
+            onClick={forceRefresh}
+            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-all"
+            title="强制刷新状态"
+          >
+            🔄 刷新
+          </button>
+          <div className={`px-3 py-1 rounded-full text-sm ${connected ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400 animate-pulse'}`}>
+            {connected 
+              ? '● 已连接' 
+              : reconnectCountdown !== null 
+                ? `○ ${reconnectCountdown}秒后重连...`
+                : '○ 连接中...'
+            }
           </div>
         </div>
       </header>
@@ -1005,6 +1054,9 @@ export default function DirectorPage() {
           </div>
         </div>
       )}
+
+      {/* Operation Status Toast */}
+      <OperationToast status={operationStatus} />
     </div>
   );
 }

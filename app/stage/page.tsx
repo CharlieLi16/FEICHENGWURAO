@@ -103,8 +103,47 @@ function MaleGuestCard({
   );
 }
 
-// VCR Video Player
-function VCRPlayer({ url, playing, onClose }: { url?: string; playing: boolean; onClose: () => void }) {
+// Mini light for PiP overlay
+function MiniLight({ status }: { status: 'on' | 'off' | 'burst' }) {
+  return (
+    <div className={`w-5 h-5 rounded-full transition-all ${
+      status === 'on' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+      status === 'burst' ? 'bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.8)] animate-pulse' :
+      'bg-gray-600'
+    }`} />
+  );
+}
+
+// Mini lights overlay for VCR PiP
+function MiniLightsOverlay({ lights }: { lights: Record<number, 'on' | 'off' | 'burst'> }) {
+  return (
+    <div className="absolute top-4 left-4 z-[70] bg-black/70 backdrop-blur-sm rounded-xl p-3">
+      <div className="grid grid-cols-6 gap-1.5 mb-1.5">
+        {[1, 2, 3, 4, 5, 6].map(id => (
+          <MiniLight key={id} status={lights[id] || 'on'} />
+        ))}
+      </div>
+      <div className="grid grid-cols-6 gap-1.5">
+        {[7, 8, 9, 10, 11, 12].map(id => (
+          <MiniLight key={id} status={lights[id] || 'on'} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// VCR Video Player - True fullscreen with PiP lights
+function VCRPlayer({ 
+  url, 
+  playing, 
+  onClose,
+  lights 
+}: { 
+  url?: string; 
+  playing: boolean; 
+  onClose: () => void;
+  lights: Record<number, 'on' | 'off' | 'burst'>;
+}) {
   if (!url || !playing) return null;
   
   const handleVideoEnd = () => {
@@ -112,41 +151,46 @@ function VCRPlayer({ url, playing, onClose }: { url?: string; playing: boolean; 
   };
   
   return (
-    <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-50">
-      {/* Close button */}
+    <div className="fixed inset-0 bg-black z-50">
+      {/* Close button - OUTSIDE iframe, high z-index */}
       <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-12 h-12 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-2xl transition-all shadow-lg"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="absolute top-4 right-4 z-[70] w-14 h-14 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-3xl transition-all shadow-lg hover:scale-110"
         title="关闭 VCR"
       >
         ✕
       </button>
       
-      <div className="w-full max-w-4xl aspect-video">
-        {url.includes('youtube') || url.includes('youtu.be') ? (
-          <iframe
-            src={url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=1'}
-            className="w-full h-full rounded-lg"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-          />
-        ) : url.includes('bilibili') ? (
-          <iframe
-            src={url}
-            className="w-full h-full rounded-lg"
-            allow="autoplay"
-            allowFullScreen
-          />
-        ) : (
-          <video
-            src={url}
-            className="w-full h-full rounded-lg"
-            autoPlay
-            controls
-            onEnded={handleVideoEnd}
-          />
-        )}
-      </div>
+      {/* Mini lights PiP */}
+      <MiniLightsOverlay lights={lights} />
+      
+      {/* Video - true fullscreen */}
+      {url.includes('youtube') || url.includes('youtu.be') ? (
+        <iframe
+          src={url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=1'}
+          className="w-full h-full"
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+        />
+      ) : url.includes('bilibili') ? (
+        <iframe
+          src={url}
+          className="w-full h-full"
+          allow="autoplay"
+          allowFullScreen
+        />
+      ) : (
+        <video
+          src={url}
+          className="w-full h-full object-contain bg-black"
+          autoPlay
+          controls
+          onEnded={handleVideoEnd}
+        />
+      )}
     </div>
   );
 }
@@ -635,6 +679,7 @@ export default function StagePage() {
         url={vcrUrl} 
         playing={state.vcrPlaying} 
         onClose={() => updateState({ vcrPlaying: false })}
+        lights={state.lights}
       />
 
       {/* Question Bubble - shows during "您的需求是？" phase */}
