@@ -9,6 +9,12 @@ let femaleGuests: FemaleGuest[] = [];
 let maleGuests: MaleGuest[] = [];
 let slides: SlideSlot[] = [...defaultSlideSlots];
 
+// Track last loaded savedAt to avoid overwriting newer data with older data
+let lastLoadedSavedAt = 0;
+
+// Mutex lock for save operations (prevents concurrent writes from stomping each other)
+let saveLock: Promise<void> = Promise.resolve();
+
 // Get current data for persistence
 function getDataForSave() {
   return {
@@ -31,33 +37,56 @@ function getDataForSave() {
 
 // IMMEDIATE save - for all state changes
 // Returns a promise that resolves when save is complete
+// CRITICAL: Uses mutex lock to prevent concurrent writes from stomping each other
 // CRITICAL: Always syncs from Blob first to prevent cold start empty data overwrites
 export async function triggerSaveImmediate(): Promise<void> {
-  // Sync memory from Blob before writing - prevents cold start overwrites
-  await getEventDataFresh();
-  await saveEventData(getDataForSave());
+  // Chain onto the save lock to serialize writes within this instance
+  // This prevents: A reads V1, B reads V1, A writes V2, B writes V3 (loses A's changes)
+  saveLock = saveLock.then(async () => {
+    // Sync memory from Blob before writing - prevents cold start overwrites
+    await getEventDataFresh();
+    const savedAt = await saveEventData(getDataForSave());
+    // Update our tracking so subsequent refreshes know we have this version
+    lastLoadedSavedAt = savedAt;
+  }).catch(err => {
+    // Log but don't break the lock chain
+    console.error('[Persist] saveLock error:', err);
+    throw err;
+  });
+  return saveLock;
 }
 
 // Subscribers for SSE
 type Subscriber = (data: EventData) => void;
 const subscribers: Set<Subscriber> = new Set();
 
-// Always fetch fresh from Blob - ensures consistency across serverless instances
+// Fetch fresh from Blob - ensures consistency across serverless instances
+// Only updates memory if Blob data is newer than what we last loaded (prevents overwriting newer local changes)
 export async function getEventDataFresh(): Promise<EventData> {
   try {
     const savedData = await loadEventData();
     if (savedData) {
-      // Update in-memory state from Blob
-      femaleGuests = savedData.femaleGuests || [];
-      maleGuests = savedData.maleGuests || [];
-      slides = savedData.slides || [...defaultSlideSlots];
-      
-      if (savedData.eventState) {
-        eventState = {
-          ...eventState,
-          ...savedData.eventState,
-          lastUpdated: Date.now(),
-        };
+      // Only update memory if Blob data is newer than what we already have
+      // This prevents: local update -> refresh -> older Blob overwrites local update
+      if (savedData.savedAt > lastLoadedSavedAt) {
+        lastLoadedSavedAt = savedData.savedAt;
+        
+        // Update in-memory state from Blob
+        femaleGuests = savedData.femaleGuests || [];
+        maleGuests = savedData.maleGuests || [];
+        slides = savedData.slides || [...defaultSlideSlots];
+        
+        if (savedData.eventState) {
+          eventState = {
+            ...eventState,
+            ...savedData.eventState,
+            lastUpdated: Date.now(),
+          };
+        }
+        
+        console.log('[EventStore] Refreshed from Blob, savedAt:', new Date(savedData.savedAt).toISOString());
+      } else {
+        console.log('[EventStore] Skipped refresh - local data is newer or same');
       }
     }
   } catch (error) {

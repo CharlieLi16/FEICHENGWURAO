@@ -17,6 +17,7 @@ interface PersistedData {
 }
 
 // Save event data to Vercel Blob
+// Returns the savedAt timestamp for the caller to track
 export async function saveEventData(data: {
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
@@ -24,10 +25,11 @@ export async function saveEventData(data: {
   eventState?: Partial<EventState>;
   stageBackground?: string;
   backgroundBlur?: number;
-}): Promise<void> {
+}): Promise<number> {
+  const savedAt = Date.now();
   const persistedData: PersistedData = {
     ...data,
-    savedAt: Date.now(),
+    savedAt,
   };
 
   // Log what we're saving
@@ -48,7 +50,7 @@ export async function saveEventData(data: {
   });
 
   console.log('[Persist] Event data saved to Blob:', result.url);
-  // Now throws on failure - caller will know if save failed
+  return savedAt;  // Return timestamp for caller to update their tracking
 }
 
 // Load event data from Vercel Blob
@@ -65,12 +67,16 @@ export async function loadEventData(): Promise<PersistedData | null> {
     const exactMatches = blobs.filter(b => b.pathname === BLOB_PATH);
     const candidates = exactMatches.length > 0 ? exactMatches : blobs;
     
-    // Sort by uploadedAt to get the latest version (handles edge cases with multiple blobs)
-    const latest = candidates.sort((a, b) => {
-      const ta = new Date(a.uploadedAt).getTime();
-      const tb = new Date(b.uploadedAt).getTime();
-      return tb - ta;  // Descending - latest first
-    })[0];
+    // Helper to safely get timestamp from blob metadata (with fallbacks)
+    const getBlobTime = (blob: typeof blobs[0]): number => {
+      // Try multiple possible field names, fallback to 0
+      const timestamp = (blob as any).uploadedAt ?? (blob as any).createdAt ?? (blob as any).updatedAt ?? 0;
+      const time = new Date(timestamp).getTime();
+      return isNaN(time) ? 0 : time;  // Guard against Invalid Date
+    };
+    
+    // Sort by timestamp to get the latest version (handles edge cases with multiple blobs)
+    const latest = candidates.sort((a, b) => getBlobTime(b) - getBlobTime(a))[0];
 
     if (!latest) {
       console.log('[Persist] No valid blob found');
