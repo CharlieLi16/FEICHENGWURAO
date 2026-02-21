@@ -485,6 +485,12 @@ function HeartRevealAnimation({
   const [bgOpacity, setBgOpacity] = useState(0);
   const [formCircle, setFormCircle] = useState(false);
   
+  // Use ref to track current highlight for closure access
+  const currentHighlightRef = useRef(currentHighlight);
+  useEffect(() => {
+    currentHighlightRef.current = currentHighlight;
+  }, [currentHighlight]);
+  
   // Only show guests with lights on (eligible candidates)
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
@@ -500,15 +506,17 @@ function HeartRevealAnimation({
     return { x, y };
   };
   
-  // Circle position for eligible guests only
+  // Circle position - use viewport height (vh) units for true circle
+  // Returns pixel offsets from center
   const getCirclePosition = (guestId: number) => {
     const eligibleIndex = eligibleIds.indexOf(guestId);
-    if (eligibleIndex === -1) return { x: 50, y: 50 }; // Center if not eligible
+    if (eligibleIndex === -1) return { xPx: 0, yPx: 0 }; // Center if not eligible
     const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
-    const radius = 28; // Percentage from center
-    const x = 50 + Math.cos(angle) * radius;
-    const y = 50 + Math.sin(angle) * radius;
-    return { x, y };
+    // Use fixed pixel radius based on viewport height for true circle
+    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.3; // 30% of smaller dimension
+    const xPx = Math.cos(angle) * radius;
+    const yPx = Math.sin(angle) * radius;
+    return { xPx, yPx };
   };
   
   // Entrance animation timeline
@@ -541,6 +549,11 @@ function HeartRevealAnimation({
     
     let timeouts: ReturnType<typeof setTimeout>[] = [];
     let intervals: ReturnType<typeof setInterval>[] = [];
+    
+    // Initialize highlight to first eligible guest
+    if (eligibleIds.length > 0) {
+      setCurrentHighlight(eligibleIds[0]);
+    }
     
     // Phase 1: Fast spinning (0-2s) - 80ms intervals
     const fastInterval = setInterval(() => {
@@ -577,16 +590,18 @@ function HeartRevealAnimation({
         }, 300);
         intervals.push(slowInterval);
         
-        // Phase 4: Very slow (5-6s) - 500ms intervals, approach target
+        // Phase 4: Very slow (5-6s) - approach target then stop
         timeouts.push(setTimeout(() => {
           clearInterval(slowInterval);
           
-          // Calculate steps to land on heartChoice
+          // Calculate steps to land on heartChoice using ref for current value
           const targetIndex = eligibleIds.indexOf(heartChoice);
-          const currentIndex = eligibleIds.indexOf(currentHighlight);
+          const currentIdx = eligibleIds.indexOf(currentHighlightRef.current);
           
-          // Ensure we have at least 3 more steps
-          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
+          // Calculate steps needed to reach target (at least 3 more steps for dramatic effect)
+          let stepsToTarget = (targetIndex - currentIdx + eligibleIds.length) % eligibleIds.length;
+          if (stepsToTarget < 3) stepsToTarget += eligibleIds.length; // Add a full rotation if too close
+          
           let step = 0;
           
           const finalInterval = setInterval(() => {
@@ -597,7 +612,7 @@ function HeartRevealAnimation({
               return eligibleIds[nextIdx];
             });
             
-            if (step >= stepsNeeded) {
+            if (step >= stepsToTarget) {
               clearInterval(finalInterval);
               setCurrentHighlight(heartChoice);
               setAnimationPhase('stopped');
@@ -689,10 +704,6 @@ function HeartRevealAnimation({
             const isHighlighted = isSpinning && currentHighlight === guestId;
             const isStopped = animationPhase === 'stopped' && currentHighlight === guestId;
             
-            // Calculate current position based on animation state
-            const currentX = formCircle && isEligible ? circlePos.x : gridPos.x;
-            const currentY = formCircle && isEligible ? circlePos.y : gridPos.y;
-            
             // Ineligible guests fade out and shrink
             const scale = !isEligible && formCircle ? 0 : 
                          (isHighlighted || isStopped) ? 1.3 : 1;
@@ -700,14 +711,25 @@ function HeartRevealAnimation({
                            (isHighlighted || isStopped) ? 1 : 
                            isSpinning ? 0.6 : 1;
             
+            // Position: grid uses percentages, circle uses center + pixel offset
+            const positionStyle = formCircle && isEligible
+              ? {
+                  left: '50%',
+                  top: '50%',
+                  transform: `translate(calc(-50% + ${circlePos.xPx}px), calc(-50% + ${circlePos.yPx}px)) scale(${scale})`,
+                }
+              : {
+                  left: `${gridPos.x}%`,
+                  top: `${gridPos.y}%`,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
+                };
+            
             return (
               <div
                 key={guestId}
                 className="absolute transition-all"
                 style={{
-                  left: `${currentX}%`,
-                  top: `${currentY}%`,
-                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  ...positionStyle,
                   opacity: opacity,
                   transitionDuration: formCircle ? '1500ms' : '300ms',
                   transitionTimingFunction: formCircle ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'ease-out',
