@@ -25,26 +25,29 @@ export async function saveEventData(data: {
   stageBackground?: string;
   backgroundBlur?: number;
 }): Promise<void> {
-  try {
-    const persistedData: PersistedData = {
-      ...data,
-      savedAt: Date.now(),
-    };
+  const persistedData: PersistedData = {
+    ...data,
+    savedAt: Date.now(),
+  };
 
-    const json = JSON.stringify(persistedData, null, 2);
-    
-    // Single PUT with addRandomSuffix: false allows overwriting
-    await put(BLOB_PATH, json, {
-      access: 'public',
-      contentType: 'application/json',
-      addRandomSuffix: false,  // Allow overwrite - single network call!
-    });
+  // Log what we're saving
+  console.log('[Persist] Saving to Blob:', {
+    maleGuestsCount: data.maleGuests.length,
+    maleGuestsWithVCR: data.maleGuests.filter(g => g.vcr1Url || g.vcr2Url).length,
+    femaleGuestsCount: data.femaleGuests.length,
+  });
 
-    console.log('[Persist] Event data saved to Blob');
-  } catch (error) {
-    console.error('[Persist] Failed to save event data:', error);
-    // Don't throw - persistence failure shouldn't break the app
-  }
+  const json = JSON.stringify(persistedData, null, 2);
+  
+  // Single PUT with addRandomSuffix: false allows overwriting
+  const result = await put(BLOB_PATH, json, {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,  // Allow overwrite - single network call!
+  });
+
+  console.log('[Persist] Event data saved to Blob:', result.url);
+  // Now throws on failure - caller will know if save failed
 }
 
 // Load event data from Vercel Blob

@@ -178,13 +178,21 @@ export default function SetupPage() {
   // Auto-save just male guests (for VCR)
   const autoSaveMaleGuests = async (guests: MaleGuest[]) => {
     try {
-      console.log('[AutoSave] Saving male guests (VCR changed)');
-      await fetch('/api/event/state', {
+      console.log('[AutoSave] Saving male guests:', guests.map(g => ({
+        id: g.id, name: g.name, vcr1: g.vcr1Url?.substring(0, 50), vcr2: g.vcr2Url?.substring(0, 50)
+      })));
+      const res = await fetch('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'setMaleGuests', guests }),
       });
-      setMessage('✅ VCR 已自动保存');
+      const result = await res.json();
+      console.log('[AutoSave] Response:', result);
+      if (result.success) {
+        setMessage('✅ VCR 已自动保存');
+      } else {
+        setMessage('⚠️ VCR 保存返回失败');
+      }
       setTimeout(() => setMessage(''), 2000);
     } catch (e) {
       console.error('[AutoSave] Failed:', e);

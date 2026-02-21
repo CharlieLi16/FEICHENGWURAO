@@ -218,10 +218,25 @@ export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
 }
 
 export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
-  // Protection: refuse to overwrite non-empty data with completely empty data
+  // Log for debugging
   const newHasContent = guests.some(maleGuestHasContent);
   const currentHasContent = maleGuests.some(maleGuestHasContent);
   
+  console.log('[setMaleGuests] Incoming guests:', guests.map(g => ({
+    id: g.id,
+    name: g.name,
+    vcr1: g.vcr1Url?.substring(0, 50),
+    vcr2: g.vcr2Url?.substring(0, 50),
+  })));
+  console.log('[setMaleGuests] Current in-memory:', maleGuests.map(g => ({
+    id: g.id,
+    name: g.name,
+    vcr1: g.vcr1Url?.substring(0, 50),
+    vcr2: g.vcr2Url?.substring(0, 50),
+  })));
+  console.log('[setMaleGuests] newHasContent:', newHasContent, 'currentHasContent:', currentHasContent);
+  
+  // Protection: refuse to overwrite non-empty data with completely empty data
   if (currentHasContent && !newHasContent) {
     console.error('[BLOCKED] Refusing to overwrite male guests with empty data');
     return;  // Don't save - protect existing data
@@ -232,6 +247,7 @@ export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
   await triggerSaveImmediate();  // Immediate save - wait for Blob persistence
+  console.log('[setMaleGuests] Save completed successfully');
 }
 
 export function getFemaleGuests(): FemaleGuest[] {
