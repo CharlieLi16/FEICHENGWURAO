@@ -492,15 +492,21 @@ function HeartRevealAnimation({
   const [initialPositions, setInitialPositions] = useState<Record<number, { x: number; y: number }>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Use ref to track current highlight for closure access
+  // Only show guests with lights on (eligible candidates)
+  const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
+  const eligibleIds = eligibleGuests.map(g => g.id);
+  
+  // Use refs to track current state for closure access in intervals
   const currentHighlightRef = useRef(currentHighlight);
+  const eligibleIdsRef = useRef(eligibleIds);
+  
   useEffect(() => {
     currentHighlightRef.current = currentHighlight;
   }, [currentHighlight]);
   
-  // Only show guests with lights on (eligible candidates)
-  const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
-  const eligibleIds = eligibleGuests.map(g => g.id);
+  useEffect(() => {
+    eligibleIdsRef.current = eligibleIds;
+  }, [eligibleIds]);
   
   // Capture initial positions from the actual stage lights on mount
   useEffect(() => {
@@ -577,18 +583,25 @@ function HeartRevealAnimation({
     let timeouts: ReturnType<typeof setTimeout>[] = [];
     let intervals: ReturnType<typeof setInterval>[] = [];
     
+    // Helper to advance and set highlight, updating ref immediately
+    const advanceHighlight = () => {
+      const ids = eligibleIdsRef.current;
+      const current = currentHighlightRef.current;
+      const currentIndex = ids.indexOf(current);
+      const nextIndex = (currentIndex + 1) % ids.length;
+      const nextId = ids[nextIndex];
+      currentHighlightRef.current = nextId; // Update ref immediately
+      setCurrentHighlight(nextId);
+      return nextId;
+    };
+    
     // Initialize highlight to first eligible guest
-    if (eligibleIds.length > 0) {
-      setCurrentHighlight(eligibleIds[0]);
-    }
+    currentHighlightRef.current = eligibleIds[0];
+    setCurrentHighlight(eligibleIds[0]);
     
     // Phase 1: Fast spinning (0-2s) - 80ms intervals
     const fastInterval = setInterval(() => {
-      setCurrentHighlight(prev => {
-        const currentIndex = eligibleIds.indexOf(prev);
-        const nextIndex = (currentIndex + 1) % eligibleIds.length;
-        return eligibleIds[nextIndex];
-      });
+      advanceHighlight();
     }, 80);
     intervals.push(fastInterval);
     
@@ -597,11 +610,7 @@ function HeartRevealAnimation({
       clearInterval(fastInterval);
       setAnimationPhase('slowing');
       const mediumInterval = setInterval(() => {
-        setCurrentHighlight(prev => {
-          const currentIndex = eligibleIds.indexOf(prev);
-          const nextIndex = (currentIndex + 1) % eligibleIds.length;
-          return eligibleIds[nextIndex];
-        });
+        advanceHighlight();
       }, 150);
       intervals.push(mediumInterval);
       
@@ -609,11 +618,7 @@ function HeartRevealAnimation({
       timeouts.push(setTimeout(() => {
         clearInterval(mediumInterval);
         const slowInterval = setInterval(() => {
-          setCurrentHighlight(prev => {
-            const currentIndex = eligibleIds.indexOf(prev);
-            const nextIndex = (currentIndex + 1) % eligibleIds.length;
-            return eligibleIds[nextIndex];
-          });
+          advanceHighlight();
         }, 300);
         intervals.push(slowInterval);
         
@@ -621,27 +626,37 @@ function HeartRevealAnimation({
         timeouts.push(setTimeout(() => {
           clearInterval(slowInterval);
           
-          // Calculate steps to land on heartChoice using ref for current value
-          const targetIndex = eligibleIds.indexOf(heartChoice);
-          const currentIdx = eligibleIds.indexOf(currentHighlightRef.current);
+          // Use refs for current values
+          const ids = eligibleIdsRef.current;
+          const targetIndex = ids.indexOf(heartChoice);
+          const currentIdx = ids.indexOf(currentHighlightRef.current);
           
           // Calculate steps needed to reach target (at least 3 more steps for dramatic effect)
-          let stepsToTarget = (targetIndex - currentIdx + eligibleIds.length) % eligibleIds.length;
-          if (stepsToTarget < 3) stepsToTarget += eligibleIds.length; // Add a full rotation if too close
+          let stepsToTarget = (targetIndex - currentIdx + ids.length) % ids.length;
+          if (stepsToTarget < 3) stepsToTarget += ids.length; // Add a full rotation if too close
+          
+          console.log('[HeartReveal] Final approach:', { 
+            target: heartChoice, 
+            targetIndex, 
+            currentIdx, 
+            current: currentHighlightRef.current,
+            stepsToTarget,
+            ids 
+          });
           
           let step = 0;
           
           const finalInterval = setInterval(() => {
             step++;
-            setCurrentHighlight(prev => {
-              const idx = eligibleIds.indexOf(prev);
-              const nextIdx = (idx + 1) % eligibleIds.length;
-              return eligibleIds[nextIdx];
-            });
+            const nextId = advanceHighlight();
+            console.log('[HeartReveal] Step', step, '/', stepsToTarget, '-> guest', nextId);
             
             if (step >= stepsToTarget) {
               clearInterval(finalInterval);
+              // Force set to heartChoice to ensure correctness
+              currentHighlightRef.current = heartChoice;
               setCurrentHighlight(heartChoice);
+              console.log('[HeartReveal] STOPPED at', heartChoice);
               setAnimationPhase('stopped');
               
               // Phase 5: Reveal - Show final card
