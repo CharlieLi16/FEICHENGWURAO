@@ -68,6 +68,18 @@ export function useEventStream() {
   
   // Ref to track if we should show operation status
   const operationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Optimistic update helper - immediately update local state
+  const optimisticUpdate = useCallback((updates: Partial<EventState>) => {
+    setEventData(prev => ({
+      ...prev,
+      state: {
+        ...prev.state,
+        ...updates,
+        lastUpdated: Date.now(),
+      }
+    }));
+  }, []);
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -192,29 +204,34 @@ export function useEventStream() {
 
   // Actions to update state
   // Automatically handles mutual exclusivity for fullscreen overlays
+  // Uses optimistic updates for immediate UI response
   const updateState = useCallback(async (updates: Partial<EventState>) => {
+    // Mutual exclusivity: when one fullscreen state is activated, clear others
+    const mutuallyExclusiveUpdates = { ...updates };
+    
+    // If setting currentFemaleIntro → clear VCR and slides
+    if (updates.currentFemaleIntro !== undefined && updates.currentFemaleIntro !== null) {
+      mutuallyExclusiveUpdates.vcrPlaying = false;
+      mutuallyExclusiveUpdates.currentSlide = null;
+    }
+    
+    // If starting VCR → clear female intro and slides
+    if (updates.vcrPlaying === true) {
+      mutuallyExclusiveUpdates.currentFemaleIntro = null;
+      mutuallyExclusiveUpdates.currentSlide = null;
+    }
+    
+    // If showing slide → clear female intro and VCR
+    if (updates.currentSlide !== undefined && updates.currentSlide !== null) {
+      mutuallyExclusiveUpdates.currentFemaleIntro = null;
+      mutuallyExclusiveUpdates.vcrPlaying = false;
+    }
+    
+    // OPTIMISTIC UPDATE: Immediately update local state for responsive UI
+    optimisticUpdate(mutuallyExclusiveUpdates);
+    
+    // Then send to server (SSE will eventually sync all clients)
     return executeOperation(async () => {
-      // Mutual exclusivity: when one fullscreen state is activated, clear others
-      const mutuallyExclusiveUpdates = { ...updates };
-      
-      // If setting currentFemaleIntro → clear VCR and slides
-      if (updates.currentFemaleIntro !== undefined && updates.currentFemaleIntro !== null) {
-        mutuallyExclusiveUpdates.vcrPlaying = false;
-        mutuallyExclusiveUpdates.currentSlide = null;
-      }
-      
-      // If starting VCR → clear female intro and slides
-      if (updates.vcrPlaying === true) {
-        mutuallyExclusiveUpdates.currentFemaleIntro = null;
-        mutuallyExclusiveUpdates.currentSlide = null;
-      }
-      
-      // If showing slide → clear female intro and VCR
-      if (updates.currentSlide !== undefined && updates.currentSlide !== null) {
-        mutuallyExclusiveUpdates.currentFemaleIntro = null;
-        mutuallyExclusiveUpdates.vcrPlaying = false;
-      }
-      
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -222,9 +239,19 @@ export function useEventStream() {
       });
       return response.ok;
     });
-  }, [executeOperation]);
+  }, [executeOperation, optimisticUpdate]);
 
   const setLight = useCallback(async (guestId: number, status: 'on' | 'off' | 'burst') => {
+    // Optimistic update for light change
+    setEventData(prev => ({
+      ...prev,
+      state: {
+        ...prev.state,
+        lights: { ...prev.state.lights, [guestId]: status },
+        lastUpdated: Date.now(),
+      }
+    }));
+    
     return executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
@@ -236,6 +263,20 @@ export function useEventStream() {
   }, [executeOperation]);
 
   const resetLights = useCallback(async () => {
+    // Optimistic update for reset
+    setEventData(prev => ({
+      ...prev,
+      state: {
+        ...prev.state,
+        lights: {
+          1: 'on', 2: 'on', 3: 'on', 4: 'on',
+          5: 'on', 6: 'on', 7: 'on', 8: 'on',
+          9: 'on', 10: 'on', 11: 'on', 12: 'on',
+        },
+        lastUpdated: Date.now(),
+      }
+    }));
+    
     return executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
         method: 'POST',
