@@ -61,10 +61,28 @@ export async function loadEventData(): Promise<PersistedData | null> {
       return null;
     }
 
-    // Fetch the JSON content
-    const response = await fetch(blobs[0].url);
+    // Filter for exact pathname match first (avoid matching state.json.bak etc)
+    const exactMatches = blobs.filter(b => b.pathname === BLOB_PATH);
+    const candidates = exactMatches.length > 0 ? exactMatches : blobs;
+    
+    // Sort by uploadedAt to get the latest version (handles edge cases with multiple blobs)
+    const latest = candidates.sort((a, b) => {
+      const ta = new Date(a.uploadedAt).getTime();
+      const tb = new Date(b.uploadedAt).getTime();
+      return tb - ta;  // Descending - latest first
+    })[0];
+
+    if (!latest) {
+      console.log('[Persist] No valid blob found');
+      return null;
+    }
+
+    // Fetch with cache busting to avoid CDN/browser caching stale data
+    const response = await fetch(`${latest.url}?t=${Date.now()}`, { 
+      cache: 'no-store' 
+    });
     if (!response.ok) {
-      console.error('[Persist] Failed to fetch saved data');
+      console.error('[Persist] Failed to fetch saved data:', response.status);
       return null;
     }
 
@@ -78,22 +96,6 @@ export async function loadEventData(): Promise<PersistedData | null> {
   }
 }
 
-// Debounced save - prevents too many writes
-let saveTimeout: NodeJS.Timeout | null = null;
-let pendingData: Parameters<typeof saveEventData>[0] | null = null;
-
-export function debouncedSave(data: Parameters<typeof saveEventData>[0]): void {
-  pendingData = data;
-  
-  if (saveTimeout) {
-    clearTimeout(saveTimeout);
-  }
-  
-  saveTimeout = setTimeout(async () => {
-    if (pendingData) {
-      await saveEventData(pendingData);
-      pendingData = null;
-    }
-    saveTimeout = null;
-  }, 2000); // Wait 2 seconds before saving
-}
+// NOTE: Debounced save removed - unreliable in serverless environments
+// (container may freeze before timeout executes)
+// All saves now use immediate save via triggerSaveImmediate()

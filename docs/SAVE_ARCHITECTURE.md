@@ -55,11 +55,11 @@ interface PersistedData {
 // 保存到 Blob
 saveEventData(data) → put(BLOB_PATH, json, { allowOverwrite: true })
 
-// 从 Blob 读取
-loadEventData() → list({ prefix }) → fetch(blob.url) → JSON.parse()
-
-// 防抖保存 (用于非关键数据)
-debouncedSave(data) → 2秒后执行 saveEventData
+// 从 Blob 读取 (带缓存防护)
+loadEventData() → list({ prefix }) 
+               → 按 uploadedAt 排序选最新
+               → fetch(url + cache buster, { cache: 'no-store' })
+               → JSON.parse()
 ```
 
 **关键配置**:
@@ -93,12 +93,14 @@ setMaleGuests()     → getEventDataFresh() → 更新内存 → triggerSaveImme
 setSlides()         → getEventDataFresh() → 更新内存 → triggerSaveDebounced()
 ```
 
-**立即保存 vs 防抖保存**:
+**所有保存都是立即保存**:
 | 数据类型 | 保存方式 | 原因 |
 |---------|---------|------|
 | phase, lights, currentRound | 立即保存 | 关键运行时状态 |
 | femaleGuests, maleGuests | 立即保存 | 包含 VCR URLs |
-| slides | 防抖保存 | 频繁编辑，非关键 |
+| slides | 立即保存 | 防抖在 serverless 不可靠（容器可能 freeze） |
+
+**关键保护**：`triggerSaveImmediate()` 内部会先调用 `getEventDataFresh()` 同步，防止冷启动覆盖
 
 ### 3. `app/api/event/state/route.ts` - API 层
 

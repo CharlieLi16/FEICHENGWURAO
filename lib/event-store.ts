@@ -1,7 +1,7 @@
 // In-memory event state store with Vercel Blob persistence
 
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
-import { loadEventData, debouncedSave, saveEventData } from './event-persist';
+import { loadEventData, saveEventData } from './event-persist';
 
 // Global state (initialized with defaults, synced from Blob before each write)
 let eventState: EventState = { ...initialEventState };
@@ -29,16 +29,13 @@ function getDataForSave() {
   };
 }
 
-// IMMEDIATE save - for runtime state changes (phase, lights, etc.)
+// IMMEDIATE save - for all state changes
 // Returns a promise that resolves when save is complete
+// CRITICAL: Always syncs from Blob first to prevent cold start empty data overwrites
 export async function triggerSaveImmediate(): Promise<void> {
+  // Sync memory from Blob before writing - prevents cold start overwrites
+  await getEventDataFresh();
   await saveEventData(getDataForSave());
-}
-
-// DEBOUNCED save - for guest data (less frequent changes)
-// Saves on write costs
-function triggerSaveDebounced(): void {
-  debouncedSave(getDataForSave());
 }
 
 // Subscribers for SSE
@@ -153,8 +150,9 @@ export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
   const currentHasContent = femaleGuests.some(femaleGuestHasContent);
   
   if (currentHasContent && !newHasContent) {
-    console.error('[BLOCKED] Refusing to overwrite female guests with empty data');
-    return;  // Don't save - protect existing data
+    const error = new Error('BLOCKED: Refusing to overwrite female guests with empty data');
+    console.error('[BLOCKED]', error.message);
+    throw error;  // Throw so caller knows it was blocked
   }
   
   femaleGuests = guests;
@@ -188,8 +186,9 @@ export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
   
   // Protection: refuse to overwrite non-empty data with completely empty data
   if (currentHasContent && !newHasContent) {
-    console.error('[BLOCKED] Refusing to overwrite male guests with empty data');
-    return;  // Don't save - protect existing data
+    const error = new Error('BLOCKED: Refusing to overwrite male guests with empty data');
+    console.error('[BLOCKED]', error.message);
+    throw error;  // Throw so caller knows it was blocked
   }
   
   maleGuests = guests;
@@ -213,27 +212,23 @@ export function getSlides(): SlideSlot[] {
 }
 
 export async function setSlides(newSlides: SlideSlot[]): Promise<void> {
-  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
-  await getEventDataFresh();
-  
   slides = newSlides;
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSaveDebounced();  // Debounced save for slides
+  // Use immediate save - debounced save unreliable in serverless (container may freeze)
+  await triggerSaveImmediate();
 }
 
 export async function updateSlide(slideId: string, imageUrl: string | null): Promise<void> {
-  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
-  await getEventDataFresh();
-  
   slides = slides.map(slide => 
     slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
   );
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSaveDebounced();  // Debounced save for slides
+  // Use immediate save - debounced save unreliable in serverless (container may freeze)
+  await triggerSaveImmediate();
 }
 
 export function resetEvent(): void {

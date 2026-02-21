@@ -76,6 +76,13 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('Error updating event state:', error);
+    // Return specific error for blocked writes
+    if (error instanceof Error && error.message.startsWith('BLOCKED:')) {
+      return NextResponse.json({ 
+        error: error.message,
+        blocked: true 
+      }, { status: 409 });  // 409 Conflict
+    }
     return NextResponse.json({ error: 'Failed to update state' }, { status: 500 });
   }
 }
