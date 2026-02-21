@@ -27,16 +27,16 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'updateState':
         const updates = params.updates as Partial<EventState>;
-        const newState = updateEventState(updates);
+        const newState = await updateEventState(updates);  // Wait for Blob save
         return NextResponse.json({ success: true, state: newState });
 
       case 'setLight':
         const { guestId, status } = params;
-        const stateAfterLight = setLight(guestId, status);
+        const stateAfterLight = await setLight(guestId, status);  // Wait for Blob save
         return NextResponse.json({ success: true, state: stateAfterLight });
 
       case 'resetLights':
-        const stateAfterReset = resetLights();
+        const stateAfterReset = await resetLights();  // Wait for Blob save
         return NextResponse.json({ success: true, state: stateAfterReset });
 
       case 'resetEvent':
@@ -60,15 +60,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
 
       case 'showSlide':
-        const stateAfterSlide = updateEventState({ currentSlide: params.slideId || null });
+        const stateAfterSlide = await updateEventState({ currentSlide: params.slideId || null });
         return NextResponse.json({ success: true, state: stateAfterSlide });
 
       case 'hideSlide':
-        const stateAfterHide = updateEventState({ currentSlide: null });
+        const stateAfterHide = await updateEventState({ currentSlide: null });
         return NextResponse.json({ success: true, state: stateAfterHide });
 
       case 'setStageBackground':
-        const stateAfterBg = updateEventState({ stageBackground: params.url || undefined });
+        const stateAfterBg = await updateEventState({ stageBackground: params.url || undefined });
         return NextResponse.json({ success: true, state: stateAfterBg });
 
       default:

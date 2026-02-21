@@ -1,7 +1,7 @@
 // Persist event data to Vercel Blob as JSON
 // This ensures data survives serverless function restarts
 
-import { put, head, del } from '@vercel/blob';
+import { put, list } from '@vercel/blob';
 import { EventData, EventState, FemaleGuest, MaleGuest, SlideSlot } from './event-state';
 
 const BLOB_PATH = 'event-data/state.json';
@@ -33,19 +33,11 @@ export async function saveEventData(data: {
 
     const json = JSON.stringify(persistedData, null, 2);
     
-    // Delete old file first (Vercel Blob doesn't support overwrite directly)
-    try {
-      const existing = await head(BLOB_PATH);
-      if (existing) {
-        await del(existing.url);
-      }
-    } catch {
-      // File doesn't exist, that's fine
-    }
-
+    // Single PUT with addRandomSuffix: false allows overwriting
     await put(BLOB_PATH, json, {
       access: 'public',
       contentType: 'application/json',
+      addRandomSuffix: false,  // Allow overwrite - single network call!
     });
 
     console.log('[Persist] Event data saved to Blob');
@@ -58,15 +50,15 @@ export async function saveEventData(data: {
 // Load event data from Vercel Blob
 export async function loadEventData(): Promise<PersistedData | null> {
   try {
-    // Check if file exists
-    const blobInfo = await head(BLOB_PATH);
-    if (!blobInfo) {
+    // List blobs with the prefix to find the file
+    const { blobs } = await list({ prefix: BLOB_PATH });
+    if (blobs.length === 0) {
       console.log('[Persist] No saved data found');
       return null;
     }
 
     // Fetch the JSON content
-    const response = await fetch(blobInfo.url);
+    const response = await fetch(blobs[0].url);
     if (!response.ok) {
       console.error('[Persist] Failed to fetch saved data');
       return null;

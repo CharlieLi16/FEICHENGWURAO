@@ -86,9 +86,9 @@ function getDataForSave() {
 }
 
 // IMMEDIATE save - for runtime state changes (phase, lights, etc.)
-// Ensures consistency across serverless instances
-function triggerSaveImmediate(): void {
-  saveEventData(getDataForSave());
+// Returns a promise that resolves when save is complete
+export async function triggerSaveImmediate(): Promise<void> {
+  await saveEventData(getDataForSave());
 }
 
 // DEBOUNCED save - for guest data (less frequent changes)
@@ -145,7 +145,7 @@ export function getEventState(): EventState {
   return eventState;
 }
 
-export function updateEventState(updates: Partial<EventState>): EventState {
+export async function updateEventState(updates: Partial<EventState>): Promise<EventState> {
   eventState = {
     ...eventState,
     ...updates,
@@ -156,12 +156,12 @@ export function updateEventState(updates: Partial<EventState>): EventState {
   // IMMEDIATE save for runtime state changes - ensures consistency across instances
   const persistKeys = ['phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 'stageBackground', 'backgroundBlur', 'useGoogleSlides'];
   if (persistKeys.some(key => key in updates)) {
-    triggerSaveImmediate();
+    await triggerSaveImmediate();
   }
   return eventState;
 }
 
-export function setLight(guestId: number, status: 'on' | 'off' | 'burst'): EventState {
+export async function setLight(guestId: number, status: 'on' | 'off' | 'burst'): Promise<EventState> {
   eventState = {
     ...eventState,
     lights: {
@@ -171,11 +171,11 @@ export function setLight(guestId: number, status: 'on' | 'off' | 'burst'): Event
     lastUpdated: Date.now(),
   };
   notifySubscribers();
-  triggerSaveImmediate();  // Immediate save for runtime state
+  await triggerSaveImmediate();  // Wait for save to complete
   return eventState;
 }
 
-export function resetLights(): EventState {
+export async function resetLights(): Promise<EventState> {
   eventState = {
     ...eventState,
     lights: {
@@ -186,7 +186,7 @@ export function resetLights(): EventState {
     lastUpdated: Date.now(),
   };
   notifySubscribers();
-  triggerSaveImmediate();  // Immediate save for runtime state
+  await triggerSaveImmediate();  // Wait for save to complete
   return eventState;
 }
 
