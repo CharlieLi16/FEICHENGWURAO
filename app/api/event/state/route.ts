@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
-  getEventDataAsync, 
+  getEventDataFresh, 
   updateEventState, 
   setLight, 
   resetLights, 
@@ -12,9 +12,9 @@ import {
 } from '@/lib/event-store';
 import { EventState, FemaleGuest, MaleGuest, SlideSlot } from '@/lib/event-state';
 
-// GET - Retrieve current event state (loads from Blob on first request)
+// GET - Retrieve current event state (always fresh from Blob for consistency)
 export async function GET() {
-  const data = await getEventDataAsync();
+  const data = await getEventDataFresh();
   return NextResponse.json(data);
 }
 

@@ -111,6 +111,36 @@ export async function getEventDataAsync(): Promise<EventData> {
   };
 }
 
+// Force refresh from Blob - use for GET requests to ensure consistency
+export async function getEventDataFresh(): Promise<EventData> {
+  try {
+    const savedData = await loadEventData();
+    if (savedData) {
+      // Update in-memory state from Blob
+      femaleGuests = savedData.femaleGuests || [];
+      maleGuests = savedData.maleGuests || [];
+      slides = savedData.slides || [...defaultSlideSlots];
+      
+      if (savedData.eventState) {
+        eventState = {
+          ...eventState,
+          ...savedData.eventState,
+          lastUpdated: Date.now(),
+        };
+      }
+    }
+  } catch (error) {
+    console.error('[EventStore] Failed to refresh from Blob:', error);
+  }
+  
+  return {
+    state: eventState,
+    femaleGuests,
+    maleGuests,
+    slides,
+  };
+}
+
 // Sync version for SSE (initialization should have happened already)
 export function getEventData(): EventData {
   return {
@@ -171,6 +201,15 @@ export function resetLights(): EventState {
 }
 
 export function setFemaleGuests(guests: FemaleGuest[]): void {
+  // Protection: refuse to overwrite non-empty data with empty data
+  const newHasContent = guests.some(g => g.name?.trim());
+  const currentHasContent = femaleGuests.some(g => g.name?.trim());
+  
+  if (currentHasContent && !newHasContent) {
+    console.error('[BLOCKED] Refusing to overwrite female guests with empty data');
+    return;  // Don't save - protect existing data
+  }
+  
   femaleGuests = guests;
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
@@ -179,6 +218,15 @@ export function setFemaleGuests(guests: FemaleGuest[]): void {
 }
 
 export function setMaleGuests(guests: MaleGuest[]): void {
+  // Protection: refuse to overwrite non-empty data with empty data
+  const newHasContent = guests.some(g => g.name?.trim());
+  const currentHasContent = maleGuests.some(g => g.name?.trim());
+  
+  if (currentHasContent && !newHasContent) {
+    console.error('[BLOCKED] Refusing to overwrite male guests with empty data');
+    return;  // Don't save - protect existing data
+  }
+  
   maleGuests = guests;
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };

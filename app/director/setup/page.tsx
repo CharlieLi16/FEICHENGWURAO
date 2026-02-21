@@ -160,6 +160,22 @@ export default function SetupPage() {
 
   // Save all data
   const saveData = async () => {
+    // Client-side protection: warn if trying to save empty data
+    const hasAnyFemale = femaleGuests.some(g => g.name?.trim());
+    const hasAnyMale = maleGuests.some(g => g.name?.trim());
+    
+    if (!hasAnyFemale && !hasAnyMale) {
+      const confirmed = window.confirm(
+        '⚠️ 警告：所有嘉宾数据都是空的！\n\n' +
+        '确定要保存吗？这可能会覆盖现有数据。\n\n' +
+        '如果你想保留现有数据，请点击"取消"并刷新页面。'
+      );
+      if (!confirmed) {
+        setMessage('❌ 已取消保存');
+        return;
+      }
+    }
+    
     setSaving(true);
     setMessage('');
     try {
