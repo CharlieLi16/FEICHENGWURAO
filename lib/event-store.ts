@@ -190,7 +190,7 @@ export async function resetLights(): Promise<EventState> {
   return eventState;
 }
 
-export function setFemaleGuests(guests: FemaleGuest[]): void {
+export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
   // Protection: refuse to overwrite non-empty data with empty data
   const newHasContent = guests.some(g => g.name?.trim());
   const currentHasContent = femaleGuests.some(g => g.name?.trim());
@@ -204,10 +204,10 @@ export function setFemaleGuests(guests: FemaleGuest[]): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSaveDebounced();  // Debounced save for guest data (less frequent)
+  await triggerSaveImmediate();  // Immediate save - wait for Blob persistence
 }
 
-export function setMaleGuests(guests: MaleGuest[]): void {
+export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
   // Protection: refuse to overwrite non-empty data with empty data
   const newHasContent = guests.some(g => g.name?.trim());
   const currentHasContent = maleGuests.some(g => g.name?.trim());
@@ -221,7 +221,7 @@ export function setMaleGuests(guests: MaleGuest[]): void {
   // Update timestamp to trigger SSE push
   eventState = { ...eventState, lastUpdated: Date.now() };
   notifySubscribers();
-  triggerSaveDebounced();  // Debounced save for guest data (less frequent)
+  await triggerSaveImmediate();  // Immediate save - wait for Blob persistence
 }
 
 export function getFemaleGuests(): FemaleGuest[] {

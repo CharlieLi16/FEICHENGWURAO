@@ -44,11 +44,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
 
       case 'setFemaleGuests':
-        setFemaleGuests(params.guests as FemaleGuest[]);
+        await setFemaleGuests(params.guests as FemaleGuest[]);  // Wait for Blob save
         return NextResponse.json({ success: true });
 
       case 'setMaleGuests':
-        setMaleGuests(params.guests as MaleGuest[]);
+        await setMaleGuests(params.guests as MaleGuest[]);  // Wait for Blob save
         return NextResponse.json({ success: true });
 
       case 'setSlides':
