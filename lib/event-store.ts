@@ -190,10 +190,20 @@ export async function resetLights(): Promise<EventState> {
   return eventState;
 }
 
+// Check if female guest has any meaningful content
+function femaleGuestHasContent(g: FemaleGuest): boolean {
+  return !!(g.name?.trim() || g.photo || (g.photos && g.photos.length > 0));
+}
+
+// Check if male guest has any meaningful content
+function maleGuestHasContent(g: MaleGuest): boolean {
+  return !!(g.name?.trim() || g.vcr1Url || g.vcr2Url || g.photo);
+}
+
 export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
-  // Protection: refuse to overwrite non-empty data with empty data
-  const newHasContent = guests.some(g => g.name?.trim());
-  const currentHasContent = femaleGuests.some(g => g.name?.trim());
+  // Protection: refuse to overwrite non-empty data with completely empty data
+  const newHasContent = guests.some(femaleGuestHasContent);
+  const currentHasContent = femaleGuests.some(femaleGuestHasContent);
   
   if (currentHasContent && !newHasContent) {
     console.error('[BLOCKED] Refusing to overwrite female guests with empty data');
@@ -208,9 +218,9 @@ export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
 }
 
 export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
-  // Protection: refuse to overwrite non-empty data with empty data
-  const newHasContent = guests.some(g => g.name?.trim());
-  const currentHasContent = maleGuests.some(g => g.name?.trim());
+  // Protection: refuse to overwrite non-empty data with completely empty data
+  const newHasContent = guests.some(maleGuestHasContent);
+  const currentHasContent = maleGuests.some(maleGuestHasContent);
   
   if (currentHasContent && !newHasContent) {
     console.error('[BLOCKED] Refusing to overwrite male guests with empty data');
