@@ -133,37 +133,20 @@ function MiniLightsOverlay({ lights }: { lights: Record<number, 'on' | 'off' | '
 }
 
 // VCR Video Player - True fullscreen with PiP lights
+// READ-ONLY: No close button - VCR is controlled only from Director panel
 function VCRPlayer({ 
   url, 
   playing, 
-  onClose,
   lights 
 }: { 
   url?: string; 
   playing: boolean; 
-  onClose: () => void;
   lights: Record<number, 'on' | 'off' | 'burst'>;
 }) {
   if (!url || !playing) return null;
   
-  const handleVideoEnd = () => {
-    onClose();
-  };
-  
   return (
     <div className="fixed inset-0 bg-black z-50">
-      {/* Close button - OUTSIDE iframe, high z-index */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="absolute top-4 right-4 z-[70] w-14 h-14 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-3xl transition-all shadow-lg hover:scale-110"
-        title="关闭 VCR"
-      >
-        ✕
-      </button>
-      
       {/* Mini lights PiP */}
       <MiniLightsOverlay lights={lights} />
       
@@ -188,7 +171,7 @@ function VCRPlayer({
           className="w-full h-full object-contain bg-black"
           autoPlay
           controls
-          onEnded={handleVideoEnd}
+          // No onEnded handler - VCR stop is controlled from Director panel
         />
       )}
     </div>
@@ -560,7 +543,8 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
 }
 
 export default function StagePage() {
-  const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
+  // Stage is READ-ONLY - no updateState needed, all control from Director panel
+  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
   const { play } = useSound();
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
@@ -674,11 +658,10 @@ export default function StagePage() {
         <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} blur={blurValue} />
       )}
 
-      {/* VCR Overlay */}
+      {/* VCR Overlay - READ-ONLY, controlled from Director panel */}
       <VCRPlayer 
         url={vcrUrl} 
         playing={state.vcrPlaying} 
-        onClose={() => updateState({ vcrPlaying: false })}
         lights={state.lights}
       />
 
