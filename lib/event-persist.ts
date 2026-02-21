@@ -39,11 +39,12 @@ export async function saveEventData(data: {
 
   const json = JSON.stringify(persistedData, null, 2);
   
-  // Single PUT with addRandomSuffix: false allows overwriting
+  // Single PUT with allowOverwrite: true allows overwriting existing file
   const result = await put(BLOB_PATH, json, {
     access: 'public',
     contentType: 'application/json',
-    addRandomSuffix: false,  // Allow overwrite - single network call!
+    addRandomSuffix: false,
+    allowOverwrite: true,  // Required for overwriting existing blobs
   });
 
   console.log('[Persist] Event data saved to Blob:', result.url);
