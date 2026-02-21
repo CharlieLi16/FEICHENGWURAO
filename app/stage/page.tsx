@@ -683,9 +683,9 @@ export default function StagePage() {
       />
 
       {/* Question Bubble - shows during "您的需求是？" phase */}
-      {state.phase === 'male_question' && currentMale?.question && (
+      {state.phase === 'male_question' && currentMale && (
         <QuestionBubble 
-          question={currentMale.question} 
+          question={currentMale.question || '请问你对另一半有什么期待？'} 
           guestName={currentMale.nickname || currentMale.name} 
         />
       )}
