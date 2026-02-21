@@ -414,6 +414,13 @@ export default function SetupPage() {
                   onChange={(e) => updateMaleGuest(guest.id, 'introduction', e.target.value)}
                   className="w-full bg-gray-700 rounded px-3 py-2 text-sm h-16 resize-none"
                 />
+                <input
+                  type="text"
+                  placeholder="您的需求是？(问女嘉宾的问题)"
+                  value={guest.question || ''}
+                  onChange={(e) => updateMaleGuest(guest.id, 'question', e.target.value)}
+                  className="w-full bg-gray-700 rounded px-3 py-2 text-sm border border-blue-500/30 focus:border-blue-500"
+                />
 
                 {/* VCR Videos - Visual Skeleton */}
                 <div className="pt-2 border-t border-gray-700">

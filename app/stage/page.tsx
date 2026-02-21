@@ -409,6 +409,37 @@ function SlideOverlay({ imageUrl, slideName, blur = 0 }: { imageUrl: string; sli
   );
 }
 
+// Question Bubble - displays male guest's question during "您的需求是？" phase
+function QuestionBubble({ question, guestName }: { question: string; guestName: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div className="relative animate-in fade-in zoom-in duration-500">
+        {/* Bubble */}
+        <div className="bg-gradient-to-br from-blue-500/90 to-purple-600/90 backdrop-blur-md rounded-3xl px-12 py-8 max-w-2xl shadow-2xl shadow-purple-500/30 border border-white/20">
+          {/* Quote marks */}
+          <span className="absolute -top-4 -left-2 text-6xl text-white/30 font-serif">"</span>
+          <span className="absolute -bottom-8 -right-2 text-6xl text-white/30 font-serif">"</span>
+          
+          {/* Question text */}
+          <p className="text-3xl md:text-4xl font-bold text-white text-center leading-relaxed">
+            {question}
+          </p>
+          
+          {/* Guest name */}
+          <p className="text-center mt-4 text-blue-200 text-lg">
+            —— {guestName}
+          </p>
+        </div>
+        
+        {/* Bubble tail */}
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2">
+          <div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[20px] border-t-purple-600/90"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Google Slides Overlay for female guest intro - Native embed (fullscreen 16:9)
 function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
   const [loading, setLoading] = useState(true);
@@ -605,6 +636,14 @@ export default function StagePage() {
         playing={state.vcrPlaying} 
         onClose={() => updateState({ vcrPlaying: false })}
       />
+
+      {/* Question Bubble - shows during "您的需求是？" phase */}
+      {state.phase === 'male_question' && currentMale?.question && (
+        <QuestionBubble 
+          question={currentMale.question} 
+          guestName={currentMale.nickname || currentMale.name} 
+        />
+      )}
 
       {/* Fullscreen Female Introduction - Google Slides or Template */}
       {state.currentFemaleIntro && state.useGoogleSlides && googleSlidesId ? (

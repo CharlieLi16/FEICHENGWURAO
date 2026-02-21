@@ -57,6 +57,7 @@ export interface MaleGuest {
   vcr1Url?: string;     // VCR1 video URL
   vcr2Url?: string;     // VCR2 video URL
   introduction?: string;
+  question?: string;    // Question to ask female guests ("您的需求是？")
 }
 
 // Slide slot for custom designed images/pages
