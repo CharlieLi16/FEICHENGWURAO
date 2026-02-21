@@ -152,6 +152,12 @@ export default function SetupPage() {
     );
   };
 
+  // Use ref to always have the latest maleGuests (avoids stale closure issues)
+  const maleGuestsRef = useRef<MaleGuest[]>(maleGuests);
+  useEffect(() => {
+    maleGuestsRef.current = maleGuests;
+  }, [maleGuests]);
+
   // Track if we need to auto-save (for VCR uploads)
   const pendingAutoSave = useRef(false);
 
@@ -162,11 +168,11 @@ export default function SetupPage() {
       // Auto-save for VCR URL changes (important, easy to forget)
       if (field === 'vcr1Url' || field === 'vcr2Url') {
         pendingAutoSave.current = true;
-        // Delay to batch multiple changes
+        // Delay to batch multiple changes, use ref to get latest data
         setTimeout(() => {
           if (pendingAutoSave.current) {
             pendingAutoSave.current = false;
-            autoSaveMaleGuests(updated);
+            autoSaveMaleGuests();  // Uses ref internally
           }
         }, 1000);
       }
@@ -175,8 +181,9 @@ export default function SetupPage() {
     });
   };
 
-  // Auto-save just male guests (for VCR)
-  const autoSaveMaleGuests = async (guests: MaleGuest[]) => {
+  // Auto-save male guests - always uses ref for latest data
+  const autoSaveMaleGuests = async () => {
+    const guests = maleGuestsRef.current;
     try {
       console.log('[AutoSave] Saving male guests:', guests.map(g => ({
         id: g.id, name: g.name, vcr1: g.vcr1Url?.substring(0, 50), vcr2: g.vcr2Url?.substring(0, 50)
@@ -200,11 +207,21 @@ export default function SetupPage() {
     }
   };
 
-  // Save all data
+  // Use ref for female guests too
+  const femaleGuestsRef = useRef<FemaleGuest[]>(femaleGuests);
+  useEffect(() => {
+    femaleGuestsRef.current = femaleGuests;
+  }, [femaleGuests]);
+
+  // Save all data - uses refs to ensure latest data
   const saveData = async () => {
+    // Get latest data from refs
+    const currentFemale = femaleGuestsRef.current;
+    const currentMale = maleGuestsRef.current;
+    
     // Client-side protection: warn if trying to save empty data
-    const hasAnyFemale = femaleGuests.some(g => g.name?.trim());
-    const hasAnyMale = maleGuests.some(g => g.name?.trim());
+    const hasAnyFemale = currentFemale.some(g => g.name?.trim() || g.photo);
+    const hasAnyMale = currentMale.some(g => g.name?.trim() || g.vcr1Url || g.vcr2Url || g.photo);
     
     if (!hasAnyFemale && !hasAnyMale) {
       const confirmed = window.confirm(
@@ -221,15 +238,20 @@ export default function SetupPage() {
     setSaving(true);
     setMessage('');
     try {
+      console.log('[SaveData] Saving female guests:', currentFemale.length);
+      console.log('[SaveData] Saving male guests:', currentMale.map(g => ({
+        id: g.id, name: g.name, vcr1: g.vcr1Url?.substring(0, 50), vcr2: g.vcr2Url?.substring(0, 50)
+      })));
+      
       await fetch('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'setFemaleGuests', guests: femaleGuests }),
+        body: JSON.stringify({ action: 'setFemaleGuests', guests: currentFemale }),
       });
       await fetch('/api/event/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'setMaleGuests', guests: maleGuests }),
+        body: JSON.stringify({ action: 'setMaleGuests', guests: currentMale }),
       });
       setMessage('✅ 保存成功！');
     } catch (e) {
