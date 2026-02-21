@@ -2,7 +2,7 @@
 // This ensures data survives serverless function restarts
 
 import { put, head, del } from '@vercel/blob';
-import { EventData, FemaleGuest, MaleGuest, SlideSlot } from './event-state';
+import { EventData, EventState, FemaleGuest, MaleGuest, SlideSlot } from './event-state';
 
 const BLOB_PATH = 'event-data/state.json';
 
@@ -10,8 +10,9 @@ interface PersistedData {
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
   slides: SlideSlot[];
-  stageBackground?: string;
-  backgroundBlur?: number;
+  eventState?: Partial<EventState>;  // Runtime state (phase, currentRound, lights, etc.)
+  stageBackground?: string;  // Legacy - now part of eventState
+  backgroundBlur?: number;   // Legacy - now part of eventState
   savedAt: number;
 }
 
@@ -20,6 +21,7 @@ export async function saveEventData(data: {
   femaleGuests: FemaleGuest[];
   maleGuests: MaleGuest[];
   slides: SlideSlot[];
+  eventState?: Partial<EventState>;
   stageBackground?: string;
   backgroundBlur?: number;
 }): Promise<void> {

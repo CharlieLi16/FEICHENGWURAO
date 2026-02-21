@@ -29,19 +29,31 @@ async function ensureInitialized(): Promise<void> {
         femaleGuests = savedData.femaleGuests || [];
         maleGuests = savedData.maleGuests || [];
         slides = savedData.slides || [...defaultSlideSlots];
-        // Restore stage background settings
-        if (savedData.stageBackground) {
-          eventState.stageBackground = savedData.stageBackground;
+        
+        // Restore full event state if available
+        if (savedData.eventState) {
+          eventState = {
+            ...eventState,
+            ...savedData.eventState,
+            lastUpdated: Date.now(),
+          };
+        } else {
+          // Legacy: restore stage background settings from old format
+          if (savedData.stageBackground) {
+            eventState.stageBackground = savedData.stageBackground;
+          }
+          if (savedData.backgroundBlur !== undefined) {
+            eventState.backgroundBlur = savedData.backgroundBlur;
+          }
         }
-        if (savedData.backgroundBlur !== undefined) {
-          eventState.backgroundBlur = savedData.backgroundBlur;
-        }
+        
         console.log('[EventStore] Restored data:', {
           femaleGuests: femaleGuests.length,
           maleGuests: maleGuests.length,
           slides: slides.length,
-          stageBackground: !!savedData.stageBackground,
-          backgroundBlur: savedData.backgroundBlur,
+          phase: eventState.phase,
+          currentRound: eventState.currentRound,
+          currentMaleGuest: eventState.currentMaleGuest,
         });
       }
     } catch (error) {
@@ -53,14 +65,23 @@ async function ensureInitialized(): Promise<void> {
   await initPromise;
 }
 
-// Trigger debounced save
+// Trigger debounced save - saves all state including runtime state
 function triggerSave(): void {
   debouncedSave({ 
     femaleGuests, 
     maleGuests, 
     slides,
-    stageBackground: eventState.stageBackground,
-    backgroundBlur: eventState.backgroundBlur,
+    eventState: {
+      phase: eventState.phase,
+      currentMaleGuest: eventState.currentMaleGuest,
+      currentRound: eventState.currentRound,
+      lights: eventState.lights,
+      heartChoice: eventState.heartChoice,
+      stageBackground: eventState.stageBackground,
+      backgroundBlur: eventState.backgroundBlur,
+      useGoogleSlides: eventState.useGoogleSlides,
+      // Don't persist transient UI state like showingProfile, vcrPlaying, etc.
+    },
   });
 }
 
@@ -99,8 +120,11 @@ export function updateEventState(updates: Partial<EventState>): EventState {
     lastUpdated: Date.now(),
   };
   notifySubscribers();
-  // Persist if background settings changed
-  if ('stageBackground' in updates || 'backgroundBlur' in updates) {
+  
+  // Persist if important runtime state changed (phase, round, lights, etc.)
+  // Skip transient UI state like showingProfile, vcrPlaying
+  const persistKeys = ['phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 'stageBackground', 'backgroundBlur', 'useGoogleSlides'];
+  if (persistKeys.some(key => key in updates)) {
     triggerSave();
   }
   return eventState;
@@ -116,6 +140,7 @@ export function setLight(guestId: number, status: 'on' | 'off' | 'burst'): Event
     lastUpdated: Date.now(),
   };
   notifySubscribers();
+  triggerSave();  // Persist light changes
   return eventState;
 }
 
@@ -130,6 +155,7 @@ export function resetLights(): EventState {
     lastUpdated: Date.now(),
   };
   notifySubscribers();
+  triggerSave();  // Persist light reset
   return eventState;
 }
 
