@@ -16,10 +16,9 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial state (already loaded) - strip savedAt before sending to client
-      const { savedAt: _, ...clientData } = initialData;
+      // Send initial state (already loaded) - include savedAt for client to track
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify(clientData)}\n\n`)
+        encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`)
       );
 
       // Poll Blob every 500ms for cross-instance updates
@@ -30,10 +29,9 @@ export async function GET(request: NextRequest) {
           // Only send if Blob data has actually changed (savedAt is strictly increasing)
           if (data.savedAt > lastSavedAt) {
             lastSavedAt = data.savedAt;
-            // Strip savedAt before sending to client
-            const { savedAt: _, ...clientData } = data;
+            // Include savedAt - client can use it for staleness checks
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(clientData)}\n\n`)
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
             );
           }
         } catch (e) {

@@ -3,7 +3,7 @@
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
 import { loadEventData, saveEventData } from './event-persist';
 
-// Global state (initialized with defaults, synced from Blob before each write)
+// Global state (initialized with defaults, synced from Blob on first access)
 let eventState: EventState = { ...initialEventState };
 let femaleGuests: FemaleGuest[] = [];
 let maleGuests: MaleGuest[] = [];
@@ -12,8 +12,35 @@ let slides: SlideSlot[] = [...defaultSlideSlots];
 // Track last loaded savedAt to avoid overwriting newer data with older data
 let lastLoadedSavedAt = 0;
 
+// Flag to track if we've hydrated from Blob (prevents cold start empty overwrites)
+// CRITICAL: Only hydrate ONCE - subsequent writes should NOT refresh from Blob
+// (otherwise we'd overwrite local changes that haven't been saved yet)
+let hasHydrated = false;
+
 // Mutex lock for save operations (prevents concurrent writes from stomping each other)
 let saveLock: Promise<void> = Promise.resolve();
+
+// Hydrate from Blob ONCE on cold start
+// This prevents empty memory from overwriting existing Blob data
+// BUT does not overwrite local changes during write operations
+async function ensureHydratedOnce(): Promise<void> {
+  if (hasHydrated) return;
+  
+  const savedData = await loadEventData();
+  if (savedData) {
+    lastLoadedSavedAt = savedData.savedAt;
+    femaleGuests = savedData.femaleGuests || [];
+    maleGuests = savedData.maleGuests || [];
+    slides = savedData.slides || [...defaultSlideSlots];
+    if (savedData.eventState) {
+      eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
+    }
+    console.log('[EventStore] Hydrated from Blob on cold start, savedAt:', new Date(savedData.savedAt).toISOString());
+  } else {
+    console.log('[EventStore] No Blob data found, using defaults');
+  }
+  hasHydrated = true;
+}
 
 // Get current data for persistence
 function getDataForSave() {
@@ -44,13 +71,14 @@ function getDataForSave() {
 // IMMEDIATE save - for all state changes
 // Returns a promise that resolves when save is complete
 // CRITICAL: Uses mutex lock to prevent concurrent writes from stomping each other
-// CRITICAL: Always syncs from Blob first to prevent cold start empty data overwrites
+// CRITICAL: Hydrates ONCE on cold start, but does NOT refresh during writes (would lose local changes)
 export async function triggerSaveImmediate(): Promise<void> {
   // Chain onto the save lock to serialize writes within this instance
   // This prevents: A reads V1, B reads V1, A writes V2, B writes V3 (loses A's changes)
   saveLock = saveLock.then(async () => {
-    // Sync memory from Blob before writing - prevents cold start overwrites
-    await getEventDataFresh();
+    // Only hydrate on cold start - do NOT refresh during writes
+    // (refreshing during writes would overwrite local changes with older Blob data)
+    await ensureHydratedOnce();
     const savedAt = await saveEventData(getDataForSave());
     // Update our tracking so subsequent refreshes know we have this version
     lastLoadedSavedAt = savedAt;
@@ -137,7 +165,13 @@ export async function updateEventState(updates: Partial<EventState>): Promise<Ev
   notifySubscribers();
   
   // IMMEDIATE save for runtime state changes - ensures consistency across instances
-  const persistKeys = ['phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 'stageBackground', 'backgroundBlur', 'useGoogleSlides'];
+  // Includes all persisted fields (core + stage-critical)
+  const persistKeys = [
+    'phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 
+    'stageBackground', 'backgroundBlur', 'useGoogleSlides',
+    // Stage-critical fields (舞台需要这些)
+    'currentFemaleIntro', 'currentSlide', 'vcrPlaying', 'vcrType', 'message'
+  ];
   if (persistKeys.some(key => key in updates)) {
     await triggerSaveImmediate();
   }
@@ -184,8 +218,8 @@ function maleGuestHasContent(g: MaleGuest): boolean {
 }
 
 export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
-  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
-  await getEventDataFresh();
+  // Hydrate once on cold start (so currentHasContent check works correctly)
+  await ensureHydratedOnce();
   
   // Protection: refuse to overwrite non-empty data with completely empty data
   const newHasContent = guests.some(femaleGuestHasContent);
@@ -205,8 +239,8 @@ export async function setFemaleGuests(guests: FemaleGuest[]): Promise<void> {
 }
 
 export async function setMaleGuests(guests: MaleGuest[]): Promise<void> {
-  // Ensure memory is synced with Blob before writing (prevents cold start overwrites)
-  await getEventDataFresh();
+  // Hydrate once on cold start (so currentHasContent check works correctly)
+  await ensureHydratedOnce();
   
   // Log for debugging
   const newHasContent = guests.some(maleGuestHasContent);

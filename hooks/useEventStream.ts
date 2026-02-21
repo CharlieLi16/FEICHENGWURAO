@@ -54,6 +54,11 @@ async function fetchWithRetry(
   throw lastError || new Error('Request failed');
 }
 
+// Extended type that includes savedAt from server
+interface EventDataWithSavedAt extends EventData {
+  savedAt?: number;
+}
+
 export function useEventStream() {
   const [eventData, setEventData] = useState<EventData>({
     state: initialEventState,
@@ -65,6 +70,8 @@ export function useEventStream() {
   const [error, setError] = useState<string | null>(null);
   const [operationStatus, setOperationStatus] = useState<OperationStatus>('idle');
   const [reconnectCountdown, setReconnectCountdown] = useState<number | null>(null);
+  // Track server's savedAt timestamp (useful for staleness detection)
+  const [serverSavedAt, setServerSavedAt] = useState<number>(0);
   
   // Ref to track if we should show operation status
   const operationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -89,8 +96,13 @@ export function useEventStream() {
 
         eventSource.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data) as EventData;
-            setEventData(data);
+            const data = JSON.parse(event.data) as EventDataWithSavedAt;
+            // Extract and track savedAt separately
+            const { savedAt, ...eventDataOnly } = data;
+            if (savedAt) {
+              setServerSavedAt(savedAt);
+            }
+            setEventData(eventDataOnly);
           } catch (e) {
             console.error('Error parsing event data:', e);
           }
@@ -177,9 +189,14 @@ export function useEventStream() {
           '/api/event/state',
           { method: 'GET' }
         );
-        const data = await response.json();
+        const data = await response.json() as EventDataWithSavedAt;
         if (data) {
-          setEventData(data);
+          // Extract and track savedAt separately
+          const { savedAt, ...eventDataOnly } = data;
+          if (savedAt) {
+            setServerSavedAt(savedAt);
+          }
+          setEventData(eventDataOnly);
           return true;
         }
         return false;
@@ -343,6 +360,7 @@ export function useEventStream() {
     error,
     operationStatus,
     reconnectCountdown,
+    serverSavedAt,  // Blob's savedAt timestamp (for staleness detection)
     updateState,
     setLight,
     resetLights,
