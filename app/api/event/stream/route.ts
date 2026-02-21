@@ -9,14 +9,17 @@ export async function GET(request: NextRequest) {
   
   const encoder = new TextEncoder();
   
-  let intervalId: NodeJS.Timeout | null = null;
-  let lastUpdated = initialData.state.lastUpdated;
+  let intervalId: ReturnType<typeof setInterval> | null = null;
+  // Use savedAt (Blob timestamp) for change detection - strictly increasing and reliable
+  // (lastUpdated can change even when content is the same, causing unnecessary pushes)
+  let lastSavedAt = initialData.savedAt;
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial state (already loaded)
+      // Send initial state (already loaded) - strip savedAt before sending to client
+      const { savedAt: _, ...clientData } = initialData;
       controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`)
+        encoder.encode(`data: ${JSON.stringify(clientData)}\n\n`)
       );
 
       // Poll Blob every 500ms for cross-instance updates
@@ -24,11 +27,13 @@ export async function GET(request: NextRequest) {
       intervalId = setInterval(async () => {
         try {
           const data = await getEventDataFresh();  // Always read from Blob
-          // Only send if state has changed
-          if (data.state.lastUpdated > lastUpdated) {
-            lastUpdated = data.state.lastUpdated;
+          // Only send if Blob data has actually changed (savedAt is strictly increasing)
+          if (data.savedAt > lastSavedAt) {
+            lastSavedAt = data.savedAt;
+            // Strip savedAt before sending to client
+            const { savedAt: _, ...clientData } = data;
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+              encoder.encode(`data: ${JSON.stringify(clientData)}\n\n`)
             );
           }
         } catch (e) {

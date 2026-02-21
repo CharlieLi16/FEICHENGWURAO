@@ -30,7 +30,13 @@ function getDataForSave() {
       stageBackground: eventState.stageBackground,
       backgroundBlur: eventState.backgroundBlur,
       useGoogleSlides: eventState.useGoogleSlides,
-      // Don't persist transient UI state like showingProfile, vcrPlaying, etc.
+      // Stage-critical state (舞台需要这些来正确显示)
+      currentFemaleIntro: eventState.currentFemaleIntro,
+      currentSlide: eventState.currentSlide,
+      vcrPlaying: eventState.vcrPlaying,
+      vcrType: eventState.vcrType,
+      message: eventState.message,
+      // Don't persist Director-only UI state: showingProfile, showingTag
     },
   };
 }
@@ -60,9 +66,15 @@ export async function triggerSaveImmediate(): Promise<void> {
 type Subscriber = (data: EventData) => void;
 const subscribers: Set<Subscriber> = new Set();
 
+// Return type includes savedAt for SSE change detection
+export interface EventDataWithSavedAt extends EventData {
+  savedAt: number;
+}
+
 // Fetch fresh from Blob - ensures consistency across serverless instances
 // Only updates memory if Blob data is newer than what we last loaded (prevents overwriting newer local changes)
-export async function getEventDataFresh(): Promise<EventData> {
+// Returns savedAt for SSE to use for change detection (more reliable than lastUpdated)
+export async function getEventDataFresh(): Promise<EventDataWithSavedAt> {
   try {
     const savedData = await loadEventData();
     if (savedData) {
@@ -98,6 +110,7 @@ export async function getEventDataFresh(): Promise<EventData> {
     femaleGuests,
     maleGuests,
     slides,
+    savedAt: lastLoadedSavedAt,  // Return savedAt for SSE change detection
   };
 }
 
