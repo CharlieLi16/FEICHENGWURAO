@@ -481,6 +481,13 @@ function HeartRevealAnimation({
   femaleGuests: FemaleGuest[];
   lights: Record<number, LightStatus>;
 }) {
+  // Debug: Log props on mount and when heartChoice changes
+  useEffect(() => {
+    console.log('[HeartRevealAnimation] MOUNTED with heartChoice:', heartChoice);
+    const guest = femaleGuests.find(g => g.id === heartChoice);
+    console.log('[HeartRevealAnimation] Target guest:', guest?.name || guest?.nickname || 'NOT FOUND');
+  }, [heartChoice, femaleGuests]);
+
   // Animation phases: entering -> spinning -> slowing -> stopped -> reveal
   const [animationPhase, setAnimationPhase] = useState<'entering' | 'spinning' | 'slowing' | 'stopped' | 'reveal'>('entering');
   const [currentHighlight, setCurrentHighlight] = useState(1);
