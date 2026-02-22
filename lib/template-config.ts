@@ -244,7 +244,13 @@ export async function loadTemplateConfig(): Promise<TemplateConfig> {
     console.log('[TemplateConfig] Loaded from Blob');
     return config;
   } catch (error) {
-    console.error('[TemplateConfig] Failed to load:', error);
+    // "blob does not exist" is expected when no config has been saved yet
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('does not exist')) {
+      console.log('[TemplateConfig] No saved config found, using defaults');
+    } else {
+      console.error('[TemplateConfig] Failed to load:', error);
+    }
     return defaultTemplateConfig;
   }
 }
