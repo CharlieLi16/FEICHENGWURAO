@@ -642,20 +642,20 @@ function HeartRevealAnimation({
     console.log('[HeartReveal] Final approach - stepsToTarget:', stepsToTarget, 'targetIdx:', targetIdx);
     
     // Very slow phase: approach target at 500ms per step
-    for (let i = 0; i < stepsToTarget; i++) {
+    // Don't advance on the last step - just set directly to heartChoice
+    for (let i = 0; i < stepsToTarget - 1; i++) {
       time += 500;
-      const isLast = i === stepsToTarget - 1;
-      timeouts.push(setTimeout(() => {
-        advance();
-        if (isLast) {
-          // Force to heartChoice and stop
-          currentHighlightRef.current = heartChoice;
-          setCurrentHighlight(heartChoice);
-          console.log('[HeartReveal] STOPPED at', heartChoice);
-          setAnimationPhase('stopped');
-        }
-      }, time));
+      timeouts.push(setTimeout(advance, time));
     }
+    
+    // Final step: set directly to heartChoice (don't advance past it)
+    time += 500;
+    timeouts.push(setTimeout(() => {
+      currentHighlightRef.current = heartChoice;
+      setCurrentHighlight(heartChoice);
+      console.log('[HeartReveal] STOPPED at', heartChoice);
+      setAnimationPhase('stopped');
+    }, time));
     
     // Reveal after stopping
     time += 800;
