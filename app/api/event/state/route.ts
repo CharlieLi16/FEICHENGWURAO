@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, state: stateAfterReset });
 
       case 'resetEvent':
-        resetEvent();
+        await resetEvent();  // Wait for Blob save
         return NextResponse.json({ success: true });
 
       case 'setFemaleGuests':

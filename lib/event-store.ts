@@ -12,12 +12,12 @@ let slides: SlideSlot[] = [...defaultSlideSlots];
 // Track last loaded savedAt to avoid overwriting newer data with older data
 let lastLoadedSavedAt = 0;
 
-// Flag to track if we've attempted hydration
-let hasHydrated = false;
-
 // Flag to track if hydration was SUCCESSFUL
 // CRITICAL: Saves are blocked until this is true to prevent empty state overwrites
 let hydrationSuccessful = false;
+
+// In-flight hydration promise (prevents concurrent attempts, but allows retry on failure)
+let hydrationPromise: Promise<void> | null = null;
 
 // Mutex lock for save operations (prevents concurrent writes from stomping each other)
 let saveLock: Promise<void> = Promise.resolve();
@@ -27,50 +27,59 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Hydrate from Blob ONCE on cold start with retry logic
 // This prevents empty memory from overwriting existing Blob data
-// CRITICAL: If hydration fails after retries, saves are BLOCKED (hydrationSuccessful stays false)
+// CRITICAL: Uses promise-based approach so failures can be retried (not permanently locked)
 async function ensureHydratedOnce(): Promise<void> {
-  if (hasHydrated) return;
-  hasHydrated = true; // Mark that we've attempted (prevents multiple concurrent attempts)
+  // Already successfully hydrated - nothing to do
+  if (hydrationSuccessful) return;
   
-  const maxRetries = 3;
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[EventStore] Hydration attempt ${attempt}/${maxRetries}...`);
-      const savedData = await loadEventData();
-      
-      if (savedData) {
-        // Blob data found - load it
-        lastLoadedSavedAt = savedData.savedAt;
-        femaleGuests = savedData.femaleGuests || [];
-        maleGuests = savedData.maleGuests || [];
-        slides = savedData.slides || [...defaultSlideSlots];
-        if (savedData.eventState) {
-          console.log('[EventStore] Hydration - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
-          eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
+  // Hydration already in progress - wait for it
+  if (hydrationPromise) return hydrationPromise;
+
+  // Start hydration attempt
+  hydrationPromise = (async () => {
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[EventStore] Hydration attempt ${attempt}/${maxRetries}...`);
+        const savedData = await loadEventData();
+        
+        if (savedData) {
+          // Blob data found - load it
+          lastLoadedSavedAt = savedData.savedAt;
+          femaleGuests = savedData.femaleGuests || [];
+          maleGuests = savedData.maleGuests || [];
+          slides = savedData.slides || [...defaultSlideSlots];
+          if (savedData.eventState) {
+            console.log('[EventStore] Hydration - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
+            eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
+          }
+          console.log('[EventStore] Hydrated from Blob successfully, savedAt:', new Date(savedData.savedAt).toISOString());
+          hydrationSuccessful = true;
+          return;
+        } else {
+          // No Blob data found (first deployment or empty) - this is OK, allow saves with defaults
+          console.log('[EventStore] No Blob data found, using defaults (first deployment)');
+          hydrationSuccessful = true;
+          return;
         }
-        console.log('[EventStore] Hydrated from Blob successfully, savedAt:', new Date(savedData.savedAt).toISOString());
-        hydrationSuccessful = true;
-        return;
-      } else {
-        // No Blob data found (first deployment or empty) - this is OK, allow saves with defaults
-        console.log('[EventStore] No Blob data found, using defaults (first deployment)');
-        hydrationSuccessful = true;
-        return;
-      }
-    } catch (error) {
-      lastError = error as Error;
-      console.error(`[EventStore] Hydration attempt ${attempt}/${maxRetries} failed:`, error);
-      if (attempt < maxRetries) {
-        await delay(500 * attempt); // Exponential backoff: 500ms, 1000ms, 1500ms
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`[EventStore] Hydration attempt ${attempt}/${maxRetries} failed:`, error);
+        if (attempt < maxRetries) {
+          await delay(500 * attempt); // Exponential backoff: 500ms, 1000ms, 1500ms
+        }
       }
     }
-  }
-  
-  // All retries failed - DO NOT set hydrationSuccessful, saves will be blocked
-  console.error('[EventStore] CRITICAL: Hydration failed after all retries. Saves are BLOCKED to prevent data loss.');
-  throw new Error(`Hydration failed after ${maxRetries} retries: ${lastError?.message}`);
+    
+    // All retries failed - clear promise so NEXT call can retry (not permanently locked!)
+    hydrationPromise = null;
+    console.error('[EventStore] Hydration failed after all retries. Will retry on next request.');
+    throw new Error(`Hydration failed after ${maxRetries} retries: ${lastError?.message}`);
+  })();
+
+  return hydrationPromise;
 }
 
 // Get current data for persistence
@@ -355,9 +364,10 @@ export async function updateSlide(slideId: string, imageUrl: string | null): Pro
   await triggerSaveImmediate();
 }
 
-export function resetEvent(): void {
+export async function resetEvent(): Promise<void> {
   eventState = { ...initialEventState, lastUpdated: Date.now() };
   notifySubscribers();
+  await triggerSaveImmediate();  // Persist to Blob so SSE clients see the reset
 }
 
 // SSE subscription management
