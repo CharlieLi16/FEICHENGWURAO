@@ -4,7 +4,7 @@ import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
 import { lightColors, phaseNames, LightStatus, FemaleGuest, getGuestPhotos } from '@/lib/event-state';
 import { ElementConfig, TemplateConfig, defaultTemplateConfig } from '@/lib/template-config';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 
 // Light component for each female guest
@@ -467,7 +467,7 @@ function QuestionBubble({ question, guestName }: { question: string; guestName: 
   );
 }
 
-// Heart Reveal Animation - Spinning wheel that reveals the heart choice
+// Heart Reveal Animation - With entrance animation + original reliable spinning logic
 function HeartRevealAnimation({ 
   heartChoice, 
   femaleGuests,
@@ -477,22 +477,56 @@ function HeartRevealAnimation({
   femaleGuests: FemaleGuest[];
   lights: Record<number, LightStatus>;
 }) {
-  const [animationPhase, setAnimationPhase] = useState<'spinning' | 'slowing' | 'stopped' | 'reveal'>('spinning');
+  // Animation phases: entering -> spinning -> slowing -> stopped -> reveal
+  const [animationPhase, setAnimationPhase] = useState<'entering' | 'spinning' | 'slowing' | 'stopped' | 'reveal'>('entering');
   const [currentHighlight, setCurrentHighlight] = useState(1);
   const [showFinalCard, setShowFinalCard] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState(0);
+  const [formCircle, setFormCircle] = useState(false);
   
   // Only show guests with lights on (eligible candidates)
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
   
-  // Animation timeline
+  // Circle position calculator (percentage-based)
+  const getCirclePosition = useCallback((guestId: number) => {
+    const eligibleIndex = eligibleIds.indexOf(guestId);
+    if (eligibleIndex === -1) return { x: 50, y: 50 };
+    const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
+    const radius = 32; // percentage of viewport
+    return {
+      x: 50 + Math.cos(angle) * radius,
+      y: 50 + Math.sin(angle) * radius,
+    };
+  }, [eligibleIds]);
+  
+  // Entrance animation timeline
   useEffect(() => {
-    if (eligibleIds.length === 0) return;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
     
-    let timeouts: NodeJS.Timeout[] = [];
-    let intervals: NodeJS.Timeout[] = [];
+    // Fade in background
+    timeouts.push(setTimeout(() => setBgOpacity(0.3), 100));
+    timeouts.push(setTimeout(() => setBgOpacity(0.6), 400));
+    timeouts.push(setTimeout(() => setBgOpacity(0.9), 800));
+    timeouts.push(setTimeout(() => setBgOpacity(1), 1200));
     
-    // Phase 1: Fast spinning (0-2s) - 80ms intervals
+    // Form circle
+    timeouts.push(setTimeout(() => setFormCircle(true), 500));
+    
+    // Start spinning after entrance
+    timeouts.push(setTimeout(() => setAnimationPhase('spinning'), 2500));
+    
+    return () => timeouts.forEach(t => clearTimeout(t));
+  }, []);
+  
+  // Spinning animation - uses original setInterval logic that works!
+  useEffect(() => {
+    if (animationPhase !== 'spinning' || eligibleIds.length === 0) return;
+    
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const intervals: ReturnType<typeof setInterval>[] = [];
+    
+    // Phase 1: Fast spinning - 80ms intervals
     const fastInterval = setInterval(() => {
       setCurrentHighlight(prev => {
         const currentIndex = eligibleIds.indexOf(prev);
@@ -502,7 +536,7 @@ function HeartRevealAnimation({
     }, 80);
     intervals.push(fastInterval);
     
-    // Phase 2: Medium speed (2-4s) - 150ms intervals
+    // Phase 2: Medium speed (after 2s) - 150ms intervals
     timeouts.push(setTimeout(() => {
       clearInterval(fastInterval);
       setAnimationPhase('slowing');
@@ -515,7 +549,7 @@ function HeartRevealAnimation({
       }, 150);
       intervals.push(mediumInterval);
       
-      // Phase 3: Slow (4-5s) - 300ms intervals
+      // Phase 3: Slow (after 1s more) - 300ms intervals
       timeouts.push(setTimeout(() => {
         clearInterval(mediumInterval);
         const slowInterval = setInterval(() => {
@@ -527,39 +561,41 @@ function HeartRevealAnimation({
         }, 300);
         intervals.push(slowInterval);
         
-        // Phase 4: Very slow (5-6s) - 500ms intervals, approach target
+        // Phase 4: Very slow (after 1s more) - approach target
         timeouts.push(setTimeout(() => {
           clearInterval(slowInterval);
           
-          // Calculate steps to land on heartChoice
-          const targetIndex = eligibleIds.indexOf(heartChoice);
-          let currentIndex = eligibleIds.indexOf(currentHighlight);
-          
-          // Ensure we have at least 3 more steps
-          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
-          let step = 0;
-          
-          const finalInterval = setInterval(() => {
-            step++;
-            setCurrentHighlight(prev => {
-              const idx = eligibleIds.indexOf(prev);
-              const nextIdx = (idx + 1) % eligibleIds.length;
-              return eligibleIds[nextIdx];
-            });
+          // Calculate steps to land on heartChoice - use functional update
+          setCurrentHighlight(prev => {
+            const targetIndex = eligibleIds.indexOf(heartChoice);
+            const currentIndex = eligibleIds.indexOf(prev);
+            const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
             
-            if (step >= stepsNeeded) {
-              clearInterval(finalInterval);
-              setCurrentHighlight(heartChoice);
-              setAnimationPhase('stopped');
+            let step = 0;
+            const finalInterval = setInterval(() => {
+              step++;
+              setCurrentHighlight(p => {
+                const idx = eligibleIds.indexOf(p);
+                const nextIdx = (idx + 1) % eligibleIds.length;
+                return eligibleIds[nextIdx];
+              });
               
-              // Phase 5: Reveal (6-7s) - Show final card
-              timeouts.push(setTimeout(() => {
-                setAnimationPhase('reveal');
-                setShowFinalCard(true);
-              }, 500));
-            }
-          }, 500);
-          intervals.push(finalInterval);
+              if (step >= stepsNeeded) {
+                clearInterval(finalInterval);
+                setCurrentHighlight(heartChoice);
+                setAnimationPhase('stopped');
+                
+                // Reveal after short pause
+                setTimeout(() => {
+                  setAnimationPhase('reveal');
+                  setShowFinalCard(true);
+                }, 500);
+              }
+            }, 500);
+            intervals.push(finalInterval);
+            
+            return prev; // Return unchanged for now
+          });
         }, 1000));
       }, 1000));
     }, 2000));
@@ -568,24 +604,37 @@ function HeartRevealAnimation({
       timeouts.forEach(t => clearTimeout(t));
       intervals.forEach(i => clearInterval(i));
     };
-  }, [eligibleIds.length, heartChoice]);
+  }, [animationPhase, eligibleIds, heartChoice]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
+  const isSpinning = animationPhase === 'spinning' || animationPhase === 'slowing';
   
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-rose-900/95 via-pink-900/95 to-purple-900/95 backdrop-blur-sm flex items-center justify-center overflow-hidden">
-      {/* Animated background hearts */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden transition-all duration-700"
+      style={{
+        background: `linear-gradient(to bottom right, 
+          rgba(136, 19, 55, ${bgOpacity * 0.95}), 
+          rgba(157, 23, 77, ${bgOpacity * 0.95}), 
+          rgba(88, 28, 135, ${bgOpacity * 0.95}))`,
+        backdropFilter: bgOpacity > 0.5 ? 'blur(4px)' : 'none',
+      }}
+    >
+      {/* Animated background hearts - deterministic positions to avoid hydration error */}
+      <div 
+        className="absolute inset-0 overflow-hidden pointer-events-none transition-opacity duration-1000"
+        style={{ opacity: bgOpacity * 0.3 }}
+      >
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className="absolute text-4xl animate-pulse opacity-20"
+            className="absolute text-4xl animate-pulse"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
+              left: `${(i * 17 + 5) % 100}%`,
+              top: `${(i * 23 + 10) % 100}%`,
+              animationDelay: `${(i % 4) * 0.5}s`,
+              animationDuration: `${2 + (i % 3)}s`,
             }}
           >
             💕
@@ -593,77 +642,105 @@ function HeartRevealAnimation({
         ))}
       </div>
       
-      {/* Title */}
-      <div className="absolute top-8 left-0 right-0 text-center">
+      {/* Title - fade in */}
+      <div 
+        className="absolute top-8 left-0 right-0 text-center transition-all duration-700"
+        style={{ 
+          opacity: bgOpacity,
+          transform: `translateY(${(1 - bgOpacity) * -20}px)`,
+        }}
+      >
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
           💕 心动女生揭晓 💕
         </h1>
         <p className="text-rose-300 text-lg">
-          {animationPhase === 'reveal' ? '心动女生是...' : '谁是他的心动女生？'}
+          {animationPhase === 'entering' ? '准备揭晓...' : 
+           animationPhase === 'reveal' ? '心动女生是...' : 
+           '谁是他的心动女生？'}
         </p>
       </div>
       
-      {/* Spinning wheel of candidates */}
+      {/* Candidates - animate to circle formation */}
       {!showFinalCard && (
-        <div className="relative">
-          {/* Circular arrangement of candidates */}
-          <div className="relative w-[500px] h-[500px] md:w-[600px] md:h-[600px]">
-            {eligibleGuests.map((guest, index) => {
-              const angle = (index / eligibleGuests.length) * 2 * Math.PI - Math.PI / 2;
-              const radius = 200; // Distance from center
-              const x = Math.cos(angle) * radius;
-              const y = Math.sin(angle) * radius;
-              const isHighlighted = currentHighlight === guest.id;
-              const guestPhotos = getGuestPhotos(guest);
-              
-              return (
-                <div
-                  key={guest.id}
-                  className={`absolute transition-all duration-150 ${
-                    isHighlighted 
-                      ? 'scale-125 z-20' 
-                      : 'scale-100 z-10 opacity-60'
-                  }`}
-                  style={{
-                    left: `calc(50% + ${x}px - 50px)`,
-                    top: `calc(50% + ${y}px - 50px)`,
-                  }}
-                >
-                  <div className={`w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 transition-all ${
-                    isHighlighted 
-                      ? 'border-rose-400 shadow-[0_0_30px_rgba(251,113,133,0.8)]' 
-                      : 'border-white/30'
-                  }`}>
-                    {guestPhotos[0] ? (
-                      <img 
-                        src={guestPhotos[0]} 
-                        alt={guest.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-2xl font-bold text-white">
-                        {guest.id}
-                      </div>
-                    )}
-                  </div>
-                  {isHighlighted && (
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
-                        {guest.nickname || guest.name}
-                      </span>
+        <div className="absolute inset-0">
+          {/* All 12 guests - eligible ones animate to circle */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((guestId) => {
+            const guest = femaleGuests.find(g => g.id === guestId);
+            const isEligible = lights[guestId] !== 'off';
+            const circlePos = getCirclePosition(guestId);
+            const guestPhotos = guest ? getGuestPhotos(guest) : [];
+            const isHighlighted = isSpinning && currentHighlight === guestId;
+            const isStopped = animationPhase === 'stopped' && currentHighlight === guestId;
+            
+            // Ineligible guests fade out when forming circle
+            if (!isEligible && formCircle) return null;
+            
+            const scale = (isHighlighted || isStopped) ? 1.3 : 1;
+            const opacity = (isHighlighted || isStopped) ? 1 : isSpinning ? 0.6 : 1;
+            
+            // Start from grid position, animate to circle
+            const startRow = guestId <= 6 ? 30 : 60;
+            const startCol = ((guestId - 1) % 6) * 14 + 15;
+            const currentX = formCircle && isEligible ? circlePos.x : startCol;
+            const currentY = formCircle && isEligible ? circlePos.y : startRow;
+            
+            return (
+              <div
+                key={guestId}
+                className="absolute transition-all"
+                style={{
+                  left: `${currentX}%`,
+                  top: `${currentY}%`,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  opacity: formCircle ? opacity : bgOpacity,
+                  transitionDuration: formCircle ? '1500ms' : '300ms',
+                  transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  zIndex: (isHighlighted || isStopped) ? 30 : 10,
+                }}
+              >
+                <div className={`w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden border-4 transition-all duration-300 ${
+                  (isHighlighted || isStopped)
+                    ? 'border-rose-400 shadow-[0_0_40px_rgba(251,113,133,0.9)]' 
+                    : 'border-white/50 shadow-lg'
+                }`}>
+                  {guestPhotos[0] ? (
+                    <img 
+                      src={guestPhotos[0]} 
+                      alt={guest?.name || `${guestId}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-xl font-bold text-white">
+                      {guestId}
                     </div>
                   )}
                 </div>
-              );
-            })}
-            
-            {/* Center heart indicator */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className={`text-6xl md:text-7xl transition-all ${
-                animationPhase === 'stopped' ? 'animate-bounce' : 'animate-pulse'
-              }`}>
-                💖
+                
+                {/* Name label */}
+                {(isHighlighted || isStopped) && guest && (
+                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap animate-in fade-in zoom-in duration-200">
+                    <span className="bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                      {guest.nickname || guest.name}
+                    </span>
+                  </div>
+                )}
               </div>
+            );
+          })}
+          
+          {/* Center heart indicator */}
+          <div 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-700"
+            style={{
+              opacity: formCircle ? 1 : 0,
+              transform: `translate(-50%, -50%) scale(${formCircle ? 1 : 0.5})`,
+            }}
+          >
+            <div className={`text-6xl md:text-8xl transition-all ${
+              animationPhase === 'stopped' ? 'animate-bounce' : 
+              animationPhase === 'entering' ? '' : 'animate-pulse'
+            }`}>
+              💖
             </div>
           </div>
         </div>
