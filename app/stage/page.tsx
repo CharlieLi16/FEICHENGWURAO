@@ -24,10 +24,7 @@ function GuestLight({
   const isBurst = status === 'burst';
 
   return (
-    <div 
-      data-guest-id={guestId}
-      className={`relative flex flex-col items-center transition-all duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-60'}`}
-    >
+    <div className={`relative flex flex-col items-center transition-all duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-60'}`}>
       {/* Light glow effect */}
       <div 
         className={`absolute -inset-4 rounded-full blur-xl transition-all duration-500 ${isBurst ? 'animate-pulse' : ''}`}
@@ -471,7 +468,6 @@ function QuestionBubble({ question, guestName }: { question: string; guestName: 
 }
 
 // Heart Reveal Animation - Spinning wheel that reveals the heart choice
-// With entrance animation: guests float from their ACTUAL grid positions to form a circle
 function HeartRevealAnimation({ 
   heartChoice, 
   femaleGuests,
@@ -481,228 +477,115 @@ function HeartRevealAnimation({
   femaleGuests: FemaleGuest[];
   lights: Record<number, LightStatus>;
 }) {
-  // Debug: Log props on mount only
-  useEffect(() => {
-    console.log('[HeartRevealAnimation] MOUNTED with heartChoice:', heartChoice);
-    const guest = femaleGuests.find(g => g.id === heartChoice);
-    console.log('[HeartRevealAnimation] Target guest:', guest?.nickname || guest?.name || 'NOT FOUND');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
-
-  // Animation phases: entering -> spinning -> slowing -> stopped -> reveal
-  const [animationPhase, setAnimationPhase] = useState<'entering' | 'spinning' | 'slowing' | 'stopped' | 'reveal'>('entering');
+  const [animationPhase, setAnimationPhase] = useState<'spinning' | 'slowing' | 'stopped' | 'reveal'>('spinning');
   const [currentHighlight, setCurrentHighlight] = useState(1);
   const [showFinalCard, setShowFinalCard] = useState(false);
-  const [bgOpacity, setBgOpacity] = useState(0);
-  const [formCircle, setFormCircle] = useState(false);
-  
-  // Store the initial positions of each guest from the DOM
-  const [initialPositions, setInitialPositions] = useState<Record<number, { x: number; y: number }>>({});
-  const containerRef = useRef<HTMLDivElement>(null);
   
   // Only show guests with lights on (eligible candidates)
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
   
-  // Use refs to track current state for closure access in intervals
-  const currentHighlightRef = useRef(currentHighlight);
-  const eligibleIdsRef = useRef(eligibleIds);
-  
+  // Animation timeline
   useEffect(() => {
-    currentHighlightRef.current = currentHighlight;
-  }, [currentHighlight]);
-  
-  useEffect(() => {
-    eligibleIdsRef.current = eligibleIds;
-  }, [eligibleIds]);
-  
-  // Capture initial positions from the actual stage lights on mount
-  useEffect(() => {
-    // Read positions from the actual GuestLight elements on the stage
-    const positions: Record<number, { x: number; y: number }> = {};
-    for (let id = 1; id <= 12; id++) {
-      // Find the actual light element on the stage
-      const lightElement = document.querySelector(`[data-guest-id="${id}"]`);
-      if (lightElement) {
-        const rect = lightElement.getBoundingClientRect();
-        positions[id] = {
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
-        };
-      } else {
-        // Fallback: calculate approximate position based on grid layout
-        const row = id <= 6 ? 0 : 1;
-        const col = ((id - 1) % 6);
-        const containerWidth = window.innerWidth;
-        const gridWidth = Math.min(containerWidth - 64, 1152); // max-w-6xl = 1152px, minus padding
-        const startX = (containerWidth - gridWidth) / 2;
-        const cellWidth = gridWidth / 6;
-        positions[id] = {
-          x: startX + col * cellWidth + cellWidth / 2,
-          y: row === 0 ? window.innerHeight * 0.35 : window.innerHeight * 0.55,
-        };
-      }
-    }
-    setInitialPositions(positions);
-  }, []);
-  
-  // Circle position - pixel-based for true circle
-  const getCirclePosition = (guestId: number) => {
-    const eligibleIndex = eligibleIds.indexOf(guestId);
-    if (eligibleIndex === -1) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
-    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.28;
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    return {
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
-    };
-  };
-  
-  // Entrance animation timeline
-  useEffect(() => {
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    if (eligibleIds.length === 0) return;
     
-    // Phase 0: Start background fade in immediately
-    setBgOpacity(0);
-    timeouts.push(setTimeout(() => setBgOpacity(0.3), 100));
-    timeouts.push(setTimeout(() => setBgOpacity(0.6), 400));
-    timeouts.push(setTimeout(() => setBgOpacity(0.9), 800));
-    timeouts.push(setTimeout(() => setBgOpacity(1), 1200));
+    let timeouts: NodeJS.Timeout[] = [];
+    let intervals: NodeJS.Timeout[] = [];
     
-    // Phase 1: After 0.5s, start forming circle
+    // Phase 1: Fast spinning (0-2s) - 80ms intervals
+    const fastInterval = setInterval(() => {
+      setCurrentHighlight(prev => {
+        const currentIndex = eligibleIds.indexOf(prev);
+        const nextIndex = (currentIndex + 1) % eligibleIds.length;
+        return eligibleIds[nextIndex];
+      });
+    }, 80);
+    intervals.push(fastInterval);
+    
+    // Phase 2: Medium speed (2-4s) - 150ms intervals
     timeouts.push(setTimeout(() => {
-      setFormCircle(true);
-    }, 500));
-    
-    // Phase 2: After 2.5s (entrance complete), start spinning
-    timeouts.push(setTimeout(() => {
-      setAnimationPhase('spinning');
-    }, 2500));
-    
-    return () => timeouts.forEach(t => clearTimeout(t));
-  }, []);
-  
-  // Spinning animation timeline (starts after entrance)
-  // Simplified: just spin through eligible guests and always land on heartChoice
-  useEffect(() => {
-    if (animationPhase !== 'spinning' || eligibleIds.length === 0) return;
-    
-    console.log('[HeartReveal] Starting spin animation, target:', heartChoice);
-    
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    let currentId = eligibleIds[0];
-    currentHighlightRef.current = currentId;
-    setCurrentHighlight(currentId);
-    
-    // Helper to advance to next eligible guest
-    const advance = () => {
-      const ids = eligibleIdsRef.current;
-      const idx = ids.indexOf(currentHighlightRef.current);
-      const nextIdx = (idx + 1) % ids.length;
-      currentId = ids[nextIdx];
-      currentHighlightRef.current = currentId;
-      setCurrentHighlight(currentId);
-      return currentId;
-    };
-    
-    // Schedule all the highlights in advance
-    let time = 0;
-    
-    // Fast phase: 25 steps at 80ms = 2000ms
-    for (let i = 0; i < 25; i++) {
-      time += 80;
-      timeouts.push(setTimeout(advance, time));
-    }
-    
-    // Slowing phase
-    timeouts.push(setTimeout(() => setAnimationPhase('slowing'), time));
-    
-    // Medium phase: 13 steps at 150ms = ~2000ms
-    for (let i = 0; i < 13; i++) {
-      time += 150;
-      timeouts.push(setTimeout(advance, time));
-    }
-    
-    // Slow phase: 4 steps at 300ms = 1200ms
-    for (let i = 0; i < 4; i++) {
-      time += 300;
-      timeouts.push(setTimeout(advance, time));
-    }
-    
-    // Final approach: step through until we land on heartChoice
-    // Calculate how many more steps needed
-    const totalStepsSoFar = 25 + 13 + 4; // 42 steps
-    const currentPosAfterSpin = totalStepsSoFar % eligibleIds.length;
-    const targetIdx = eligibleIds.indexOf(heartChoice);
-    let stepsToTarget = (targetIdx - currentPosAfterSpin + eligibleIds.length) % eligibleIds.length;
-    if (stepsToTarget === 0) stepsToTarget = eligibleIds.length; // At least one more rotation
-    
-    console.log('[HeartReveal] Final approach - stepsToTarget:', stepsToTarget, 'targetIdx:', targetIdx);
-    
-    // Very slow phase: approach target at 500ms per step
-    // Don't advance on the last step - just set directly to heartChoice
-    for (let i = 0; i < stepsToTarget - 1; i++) {
-      time += 500;
-      timeouts.push(setTimeout(advance, time));
-    }
-    
-    // Final step: set directly to heartChoice (don't advance past it)
-    time += 500;
-    timeouts.push(setTimeout(() => {
-      currentHighlightRef.current = heartChoice;
-      setCurrentHighlight(heartChoice);
-      console.log('[HeartReveal] STOPPED at', heartChoice);
-      setAnimationPhase('stopped');
-    }, time));
-    
-    // Reveal after stopping
-    time += 800;
-    timeouts.push(setTimeout(() => {
-      setAnimationPhase('reveal');
-      setShowFinalCard(true);
-    }, time));
+      clearInterval(fastInterval);
+      setAnimationPhase('slowing');
+      const mediumInterval = setInterval(() => {
+        setCurrentHighlight(prev => {
+          const currentIndex = eligibleIds.indexOf(prev);
+          const nextIndex = (currentIndex + 1) % eligibleIds.length;
+          return eligibleIds[nextIndex];
+        });
+      }, 150);
+      intervals.push(mediumInterval);
+      
+      // Phase 3: Slow (4-5s) - 300ms intervals
+      timeouts.push(setTimeout(() => {
+        clearInterval(mediumInterval);
+        const slowInterval = setInterval(() => {
+          setCurrentHighlight(prev => {
+            const currentIndex = eligibleIds.indexOf(prev);
+            const nextIndex = (currentIndex + 1) % eligibleIds.length;
+            return eligibleIds[nextIndex];
+          });
+        }, 300);
+        intervals.push(slowInterval);
+        
+        // Phase 4: Very slow (5-6s) - 500ms intervals, approach target
+        timeouts.push(setTimeout(() => {
+          clearInterval(slowInterval);
+          
+          // Calculate steps to land on heartChoice
+          const targetIndex = eligibleIds.indexOf(heartChoice);
+          let currentIndex = eligibleIds.indexOf(currentHighlight);
+          
+          // Ensure we have at least 3 more steps
+          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
+          let step = 0;
+          
+          const finalInterval = setInterval(() => {
+            step++;
+            setCurrentHighlight(prev => {
+              const idx = eligibleIds.indexOf(prev);
+              const nextIdx = (idx + 1) % eligibleIds.length;
+              return eligibleIds[nextIdx];
+            });
+            
+            if (step >= stepsNeeded) {
+              clearInterval(finalInterval);
+              setCurrentHighlight(heartChoice);
+              setAnimationPhase('stopped');
+              
+              // Phase 5: Reveal (6-7s) - Show final card
+              timeouts.push(setTimeout(() => {
+                setAnimationPhase('reveal');
+                setShowFinalCard(true);
+              }, 500));
+            }
+          }, 500);
+          intervals.push(finalInterval);
+        }, 1000));
+      }, 1000));
+    }, 2000));
     
     return () => {
       timeouts.forEach(t => clearTimeout(t));
+      intervals.forEach(i => clearInterval(i));
     };
-    // Only depend on animationPhase - eligibleIds and heartChoice are accessed via refs or props
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animationPhase]);
+  }, [eligibleIds.length, heartChoice]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
   
-  // Calculate if we're in a spinning state (for highlight effects)
-  const isSpinning = animationPhase === 'spinning' || animationPhase === 'slowing';
-  
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden transition-all duration-700"
-      style={{
-        background: `linear-gradient(to bottom right, 
-          rgba(136, 19, 55, ${bgOpacity * 0.95}), 
-          rgba(157, 23, 77, ${bgOpacity * 0.95}), 
-          rgba(88, 28, 135, ${bgOpacity * 0.95}))`,
-        backdropFilter: bgOpacity > 0.5 ? 'blur(4px)' : 'none',
-      }}
-    >
-      {/* Animated background hearts - fade in with background */}
-      {/* Use deterministic positions based on index to avoid hydration mismatch */}
-      <div 
-        className="absolute inset-0 overflow-hidden pointer-events-none transition-opacity duration-1000"
-        style={{ opacity: bgOpacity * 0.3 }}
-      >
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-rose-900/95 via-pink-900/95 to-purple-900/95 backdrop-blur-sm flex items-center justify-center overflow-hidden">
+      {/* Animated background hearts */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className="absolute text-4xl animate-pulse"
+            className="absolute text-4xl animate-pulse opacity-20"
             style={{
-              left: `${(i * 17 + 5) % 100}%`,
-              top: `${(i * 23 + 10) % 100}%`,
-              animationDelay: `${(i % 4) * 0.5}s`,
-              animationDuration: `${2 + (i % 3)}s`,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${2 + Math.random() * 2}s`,
             }}
           >
             💕
@@ -710,109 +593,77 @@ function HeartRevealAnimation({
         ))}
       </div>
       
-      {/* Title - fade in */}
-      <div 
-        className="absolute top-8 left-0 right-0 text-center transition-all duration-700"
-        style={{ 
-          opacity: bgOpacity,
-          transform: `translateY(${(1 - bgOpacity) * -20}px)`,
-        }}
-      >
+      {/* Title */}
+      <div className="absolute top-8 left-0 right-0 text-center">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
           💕 心动女生揭晓 💕
         </h1>
         <p className="text-rose-300 text-lg">
-          {animationPhase === 'entering' ? '准备揭晓...' : 
-           animationPhase === 'reveal' ? '心动女生是...' : 
-           '谁是他的心动女生？'}
+          {animationPhase === 'reveal' ? '心动女生是...' : '谁是他的心动女生？'}
         </p>
       </div>
       
-      {/* Candidates - animate from actual grid positions to circle */}
-      {!showFinalCard && Object.keys(initialPositions).length > 0 && (
-        <div ref={containerRef} className="absolute inset-0">
-          {/* All 12 guests - start at their actual stage positions, animate to circle */}
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((guestId) => {
-            const guest = femaleGuests.find(g => g.id === guestId);
-            const isEligible = lights[guestId] !== 'off';
-            const startPos = initialPositions[guestId] || { x: 0, y: 0 };
-            const circlePos = getCirclePosition(guestId);
-            const guestPhotos = guest ? getGuestPhotos(guest) : [];
-            const isHighlighted = isSpinning && currentHighlight === guestId;
-            const isStopped = animationPhase === 'stopped' && currentHighlight === guestId;
-            
-            // Ineligible guests fade out and shrink when forming circle
-            const scale = !isEligible && formCircle ? 0 : 
-                         (isHighlighted || isStopped) ? 1.3 : 1;
-            const opacity = !isEligible && formCircle ? 0 : 
-                           (isHighlighted || isStopped) ? 1 : 
-                           isSpinning ? 0.6 : 1;
-            
-            // Position: start at captured grid position, animate to circle
-            const currentX = formCircle && isEligible ? circlePos.x : startPos.x;
-            const currentY = formCircle && isEligible ? circlePos.y : startPos.y;
-            
-            return (
-              <div
-                key={guestId}
-                className="absolute transition-all"
-                style={{
-                  left: currentX,
-                  top: currentY,
-                  transform: `translate(-50%, -50%) scale(${scale})`,
-                  opacity: opacity,
-                  transitionDuration: formCircle ? '1500ms' : '300ms',
-                  transitionTimingFunction: formCircle ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'ease-out',
-                  zIndex: (isHighlighted || isStopped) ? 30 : 10,
-                }}
-              >
-                <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-4 transition-all duration-300 ${
-                  (isHighlighted || isStopped)
-                    ? 'border-rose-400 shadow-[0_0_40px_rgba(251,113,133,0.9)]' 
-                    : isEligible 
-                      ? 'border-white/50 shadow-lg' 
-                      : 'border-gray-500/30'
-                }`}>
-                  {guestPhotos[0] ? (
-                    <img 
-                      src={guestPhotos[0]} 
-                      alt={guest?.name || `${guestId}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className={`w-full h-full flex items-center justify-center text-xl font-bold text-white ${
-                      isEligible ? 'bg-gradient-to-br from-pink-400 to-rose-500' : 'bg-gray-600'
-                    }`}>
-                      {guestId}
+      {/* Spinning wheel of candidates */}
+      {!showFinalCard && (
+        <div className="relative">
+          {/* Circular arrangement of candidates */}
+          <div className="relative w-[500px] h-[500px] md:w-[600px] md:h-[600px]">
+            {eligibleGuests.map((guest, index) => {
+              const angle = (index / eligibleGuests.length) * 2 * Math.PI - Math.PI / 2;
+              const radius = 200; // Distance from center
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+              const isHighlighted = currentHighlight === guest.id;
+              const guestPhotos = getGuestPhotos(guest);
+              
+              return (
+                <div
+                  key={guest.id}
+                  className={`absolute transition-all duration-150 ${
+                    isHighlighted 
+                      ? 'scale-125 z-20' 
+                      : 'scale-100 z-10 opacity-60'
+                  }`}
+                  style={{
+                    left: `calc(50% + ${x}px - 50px)`,
+                    top: `calc(50% + ${y}px - 50px)`,
+                  }}
+                >
+                  <div className={`w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-4 transition-all ${
+                    isHighlighted 
+                      ? 'border-rose-400 shadow-[0_0_30px_rgba(251,113,133,0.8)]' 
+                      : 'border-white/30'
+                  }`}>
+                    {guestPhotos[0] ? (
+                      <img 
+                        src={guestPhotos[0]} 
+                        alt={guest.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-2xl font-bold text-white">
+                        {guest.id}
+                      </div>
+                    )}
+                  </div>
+                  {isHighlighted && (
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+                        {guest.nickname || guest.name}
+                      </span>
                     </div>
                   )}
                 </div>
-                
-                {/* Name label - show when highlighted or stopped */}
-                {(isHighlighted || isStopped) && guest && (
-                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap animate-in fade-in zoom-in duration-200">
-                    <span className="bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
-                      {guest.nickname || guest.name}
-                    </span>
-                  </div>
-                )}
+              );
+            })}
+            
+            {/* Center heart indicator */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <div className={`text-6xl md:text-7xl transition-all ${
+                animationPhase === 'stopped' ? 'animate-bounce' : 'animate-pulse'
+              }`}>
+                💖
               </div>
-            );
-          })}
-          
-          {/* Center heart indicator - appears after circle forms */}
-          <div 
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-700"
-            style={{
-              opacity: formCircle ? 1 : 0,
-              transform: `translate(-50%, -50%) scale(${formCircle ? 1 : 0.5})`,
-            }}
-          >
-            <div className={`text-6xl md:text-8xl transition-all ${
-              animationPhase === 'stopped' ? 'animate-bounce' : 
-              animationPhase === 'entering' ? '' : 'animate-pulse'
-            }`}>
-              💖
             </div>
           </div>
         </div>
@@ -977,11 +828,6 @@ export default function StagePage() {
       })
       .catch(err => console.error('Failed to load Google Slides config:', err));
   }, []);
-
-  // Debug: Log heartChoice changes
-  useEffect(() => {
-    console.log('[Stage] State update - phase:', state.phase, 'heartChoice:', state.heartChoice);
-  }, [state.phase, state.heartChoice]);
 
   // Update clock
   useEffect(() => {
