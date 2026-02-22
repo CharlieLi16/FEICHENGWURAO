@@ -667,7 +667,9 @@ function HeartRevealAnimation({
     return () => {
       timeouts.forEach(t => clearTimeout(t));
     };
-  }, [animationPhase, eligibleIds, heartChoice]);
+    // Only depend on animationPhase - eligibleIds and heartChoice are accessed via refs or props
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationPhase]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
