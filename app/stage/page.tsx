@@ -585,105 +585,89 @@ function HeartRevealAnimation({
   }, []);
   
   // Spinning animation timeline (starts after entrance)
+  // Simplified: just spin through eligible guests and always land on heartChoice
   useEffect(() => {
     if (animationPhase !== 'spinning' || eligibleIds.length === 0) return;
     
-    let timeouts: ReturnType<typeof setTimeout>[] = [];
-    let intervals: ReturnType<typeof setInterval>[] = [];
+    console.log('[HeartReveal] Starting spin animation, target:', heartChoice);
     
-    // Helper to advance and set highlight, updating ref immediately
-    const advanceHighlight = () => {
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    let currentId = eligibleIds[0];
+    currentHighlightRef.current = currentId;
+    setCurrentHighlight(currentId);
+    
+    // Helper to advance to next eligible guest
+    const advance = () => {
       const ids = eligibleIdsRef.current;
-      const current = currentHighlightRef.current;
-      const currentIndex = ids.indexOf(current);
-      const nextIndex = (currentIndex + 1) % ids.length;
-      const nextId = ids[nextIndex];
-      currentHighlightRef.current = nextId; // Update ref immediately
-      setCurrentHighlight(nextId);
-      return nextId;
+      const idx = ids.indexOf(currentHighlightRef.current);
+      const nextIdx = (idx + 1) % ids.length;
+      currentId = ids[nextIdx];
+      currentHighlightRef.current = currentId;
+      setCurrentHighlight(currentId);
+      return currentId;
     };
     
-    // Initialize highlight to first eligible guest
-    currentHighlightRef.current = eligibleIds[0];
-    setCurrentHighlight(eligibleIds[0]);
+    // Schedule all the highlights in advance
+    let time = 0;
     
-    // Phase 1: Fast spinning (0-2s) - 80ms intervals
-    const fastInterval = setInterval(() => {
-      advanceHighlight();
-    }, 80);
-    intervals.push(fastInterval);
+    // Fast phase: 25 steps at 80ms = 2000ms
+    for (let i = 0; i < 25; i++) {
+      time += 80;
+      timeouts.push(setTimeout(advance, time));
+    }
     
-    // Phase 2: Medium speed (2-4s) - 150ms intervals
-    timeouts.push(setTimeout(() => {
-      clearInterval(fastInterval);
-      setAnimationPhase('slowing');
-      const mediumInterval = setInterval(() => {
-        advanceHighlight();
-      }, 150);
-      intervals.push(mediumInterval);
-      
-      // Phase 3: Slow (4-5s) - 300ms intervals
+    // Slowing phase
+    timeouts.push(setTimeout(() => setAnimationPhase('slowing'), time));
+    
+    // Medium phase: 13 steps at 150ms = ~2000ms
+    for (let i = 0; i < 13; i++) {
+      time += 150;
+      timeouts.push(setTimeout(advance, time));
+    }
+    
+    // Slow phase: 4 steps at 300ms = 1200ms
+    for (let i = 0; i < 4; i++) {
+      time += 300;
+      timeouts.push(setTimeout(advance, time));
+    }
+    
+    // Final approach: step through until we land on heartChoice
+    // Calculate how many more steps needed
+    const totalStepsSoFar = 25 + 13 + 4; // 42 steps
+    const currentPosAfterSpin = totalStepsSoFar % eligibleIds.length;
+    const targetIdx = eligibleIds.indexOf(heartChoice);
+    let stepsToTarget = (targetIdx - currentPosAfterSpin + eligibleIds.length) % eligibleIds.length;
+    if (stepsToTarget === 0) stepsToTarget = eligibleIds.length; // At least one more rotation
+    
+    console.log('[HeartReveal] Final approach - stepsToTarget:', stepsToTarget, 'targetIdx:', targetIdx);
+    
+    // Very slow phase: approach target at 500ms per step
+    for (let i = 0; i < stepsToTarget; i++) {
+      time += 500;
+      const isLast = i === stepsToTarget - 1;
       timeouts.push(setTimeout(() => {
-        clearInterval(mediumInterval);
-        const slowInterval = setInterval(() => {
-          advanceHighlight();
-        }, 300);
-        intervals.push(slowInterval);
-        
-        // Phase 4: Very slow (5-6s) - approach target then stop
-        timeouts.push(setTimeout(() => {
-          clearInterval(slowInterval);
-          
-          // Use refs for current values
-          const ids = eligibleIdsRef.current;
-          const targetIndex = ids.indexOf(heartChoice);
-          const currentIdx = ids.indexOf(currentHighlightRef.current);
-          
-          // Calculate steps needed to reach target (at least 3 more steps for dramatic effect)
-          let stepsToTarget = (targetIndex - currentIdx + ids.length) % ids.length;
-          if (stepsToTarget < 3) stepsToTarget += ids.length; // Add a full rotation if too close
-          
-          console.log('[HeartReveal] Final approach:', { 
-            target: heartChoice, 
-            targetIndex, 
-            currentIdx, 
-            current: currentHighlightRef.current,
-            stepsToTarget,
-            ids 
-          });
-          
-          let step = 0;
-          
-          const finalInterval = setInterval(() => {
-            step++;
-            const nextId = advanceHighlight();
-            console.log('[HeartReveal] Step', step, '/', stepsToTarget, '-> guest', nextId);
-            
-            if (step >= stepsToTarget) {
-              clearInterval(finalInterval);
-              // Force set to heartChoice to ensure correctness
-              currentHighlightRef.current = heartChoice;
-              setCurrentHighlight(heartChoice);
-              console.log('[HeartReveal] STOPPED at', heartChoice);
-              setAnimationPhase('stopped');
-              
-              // Phase 5: Reveal - Show final card
-              timeouts.push(setTimeout(() => {
-                setAnimationPhase('reveal');
-                setShowFinalCard(true);
-              }, 800));
-            }
-          }, 500);
-          intervals.push(finalInterval);
-        }, 1000));
-      }, 1000));
-    }, 2000));
+        advance();
+        if (isLast) {
+          // Force to heartChoice and stop
+          currentHighlightRef.current = heartChoice;
+          setCurrentHighlight(heartChoice);
+          console.log('[HeartReveal] STOPPED at', heartChoice);
+          setAnimationPhase('stopped');
+        }
+      }, time));
+    }
+    
+    // Reveal after stopping
+    time += 800;
+    timeouts.push(setTimeout(() => {
+      setAnimationPhase('reveal');
+      setShowFinalCard(true);
+    }, time));
     
     return () => {
       timeouts.forEach(t => clearTimeout(t));
-      intervals.forEach(i => clearInterval(i));
     };
-  }, [animationPhase, eligibleIds.length, heartChoice]);
+  }, [animationPhase, eligibleIds, heartChoice]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
