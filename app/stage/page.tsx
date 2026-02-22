@@ -481,13 +481,13 @@ function HeartRevealAnimation({
   femaleGuests: FemaleGuest[];
   lights: Record<number, LightStatus>;
 }) {
-  // Debug: Log props on mount and when heartChoice changes
+  // Debug: Log props on mount only
   useEffect(() => {
     console.log('[HeartRevealAnimation] MOUNTED with heartChoice:', heartChoice);
-    console.log('[HeartRevealAnimation] femaleGuests IDs:', femaleGuests.map(g => g.id));
     const guest = femaleGuests.find(g => g.id === heartChoice);
-    console.log('[HeartRevealAnimation] Target guest:', guest?.name || guest?.nickname || 'NOT FOUND', '| Full guest:', guest);
-  }, [heartChoice, femaleGuests]);
+    console.log('[HeartRevealAnimation] Target guest:', guest?.nickname || guest?.name || 'NOT FOUND');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Animation phases: entering -> spinning -> slowing -> stopped -> reveal
   const [animationPhase, setAnimationPhase] = useState<'entering' | 'spinning' | 'slowing' | 'stopped' | 'reveal'>('entering');
@@ -503,12 +503,6 @@ function HeartRevealAnimation({
   // Only show guests with lights on (eligible candidates)
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
-  
-  // Debug: Check if heartChoice is eligible
-  useEffect(() => {
-    const isEligible = eligibleIds.includes(heartChoice);
-    console.log('[HeartRevealAnimation] heartChoice', heartChoice, 'isEligible:', isEligible, 'eligibleIds:', eligibleIds);
-  }, [heartChoice, eligibleIds]);
   
   // Use refs to track current state for closure access in intervals
   const currentHighlightRef = useRef(currentHighlight);
@@ -709,6 +703,7 @@ function HeartRevealAnimation({
       }}
     >
       {/* Animated background hearts - fade in with background */}
+      {/* Use deterministic positions based on index to avoid hydration mismatch */}
       <div 
         className="absolute inset-0 overflow-hidden pointer-events-none transition-opacity duration-1000"
         style={{ opacity: bgOpacity * 0.3 }}
@@ -718,10 +713,10 @@ function HeartRevealAnimation({
             key={i}
             className="absolute text-4xl animate-pulse"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
+              left: `${(i * 17 + 5) % 100}%`,
+              top: `${(i * 23 + 10) % 100}%`,
+              animationDelay: `${(i % 4) * 0.5}s`,
+              animationDuration: `${2 + (i % 3)}s`,
             }}
           >
             💕
