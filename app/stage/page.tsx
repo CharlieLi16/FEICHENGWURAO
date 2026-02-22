@@ -484,8 +484,9 @@ function HeartRevealAnimation({
   // Debug: Log props on mount and when heartChoice changes
   useEffect(() => {
     console.log('[HeartRevealAnimation] MOUNTED with heartChoice:', heartChoice);
+    console.log('[HeartRevealAnimation] femaleGuests IDs:', femaleGuests.map(g => g.id));
     const guest = femaleGuests.find(g => g.id === heartChoice);
-    console.log('[HeartRevealAnimation] Target guest:', guest?.name || guest?.nickname || 'NOT FOUND');
+    console.log('[HeartRevealAnimation] Target guest:', guest?.name || guest?.nickname || 'NOT FOUND', '| Full guest:', guest);
   }, [heartChoice, femaleGuests]);
 
   // Animation phases: entering -> spinning -> slowing -> stopped -> reveal
@@ -502,6 +503,12 @@ function HeartRevealAnimation({
   // Only show guests with lights on (eligible candidates)
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
+  
+  // Debug: Check if heartChoice is eligible
+  useEffect(() => {
+    const isEligible = eligibleIds.includes(heartChoice);
+    console.log('[HeartRevealAnimation] heartChoice', heartChoice, 'isEligible:', isEligible, 'eligibleIds:', eligibleIds);
+  }, [heartChoice, eligibleIds]);
   
   // Use refs to track current state for closure access in intervals
   const currentHighlightRef = useRef(currentHighlight);
