@@ -6,6 +6,7 @@ import { getEventDataFresh } from '@/lib/event-store';
 export async function GET(request: NextRequest) {
   // Load fresh data from Blob before starting stream
   const initialData = await getEventDataFresh();
+  console.log('[SSE] New connection - initial heartChoice:', initialData.state.heartChoice, 'phase:', initialData.state.phase);
   
   const encoder = new TextEncoder();
   
