@@ -103,46 +103,52 @@ export interface EventDataWithSavedAt extends EventData {
 }
 
 // Fetch fresh from Blob - ensures consistency across serverless instances
-// Only updates memory if Blob data is newer than what we last loaded (prevents overwriting newer local changes)
+// ALWAYS returns Blob data for reads (SSE) to ensure clients get latest persisted state
 // Returns savedAt for SSE to use for change detection (more reliable than lastUpdated)
 export async function getEventDataFresh(): Promise<EventDataWithSavedAt> {
   try {
     const savedData = await loadEventData();
     if (savedData) {
-      // Only update memory if Blob data is newer than what we already have
-      // This prevents: local update -> refresh -> older Blob overwrites local update
+      // ALWAYS use Blob data for reads - this ensures SSE clients get the latest persisted state
+      // even if in-memory state differs (e.g., due to pending writes or stale cache)
+      const blobEventState = savedData.eventState ? {
+        ...initialEventState,
+        ...savedData.eventState,
+        lastUpdated: Date.now(),
+      } : initialEventState;
+      
+      console.log('[EventStore] Returning Blob data - heartChoice:', savedData.eventState?.heartChoice, 'phase:', savedData.eventState?.phase, 'savedAt:', new Date(savedData.savedAt).toISOString());
+      
+      // Also update in-memory state to keep it in sync (for write operations)
       if (savedData.savedAt > lastLoadedSavedAt) {
         lastLoadedSavedAt = savedData.savedAt;
-        
-        // Update in-memory state from Blob
         femaleGuests = savedData.femaleGuests || [];
         maleGuests = savedData.maleGuests || [];
         slides = savedData.slides || [...defaultSlideSlots];
-        
-        if (savedData.eventState) {
-          console.log('[EventStore] Loading from Blob - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
-          eventState = {
-            ...eventState,
-            ...savedData.eventState,
-            lastUpdated: Date.now(),
-          };
-        }
-        
-        console.log('[EventStore] Refreshed from Blob, savedAt:', new Date(savedData.savedAt).toISOString());
-      } else {
-        console.log('[EventStore] Skipped refresh - local data is newer or same');
+        eventState = blobEventState;
+        console.log('[EventStore] Also updated in-memory state');
       }
+      
+      // Return Blob data directly (not in-memory cache)
+      return {
+        state: blobEventState,
+        femaleGuests: savedData.femaleGuests || [],
+        maleGuests: savedData.maleGuests || [],
+        slides: savedData.slides || [...defaultSlideSlots],
+        savedAt: savedData.savedAt,
+      };
     }
   } catch (error) {
     console.error('[EventStore] Failed to refresh from Blob:', error);
   }
   
+  // Fallback to in-memory state if Blob load fails
   return {
     state: eventState,
     femaleGuests,
     maleGuests,
     slides,
-    savedAt: lastLoadedSavedAt,  // Return savedAt for SSE change detection
+    savedAt: lastLoadedSavedAt,
   };
 }
 
