@@ -983,6 +983,11 @@ export default function StagePage() {
       .catch(err => console.error('Failed to load Google Slides config:', err));
   }, []);
 
+  // Debug: Log heartChoice changes
+  useEffect(() => {
+    console.log('[Stage] State update - phase:', state.phase, 'heartChoice:', state.heartChoice);
+  }, [state.phase, state.heartChoice]);
+
   // Update clock
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);

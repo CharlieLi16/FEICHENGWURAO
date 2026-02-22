@@ -33,6 +33,7 @@ async function ensureHydratedOnce(): Promise<void> {
     maleGuests = savedData.maleGuests || [];
     slides = savedData.slides || [...defaultSlideSlots];
     if (savedData.eventState) {
+      console.log('[EventStore] Hydration - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
       eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
     }
     console.log('[EventStore] Hydrated from Blob on cold start, savedAt:', new Date(savedData.savedAt).toISOString());
@@ -79,7 +80,9 @@ export async function triggerSaveImmediate(): Promise<void> {
     // Only hydrate on cold start - do NOT refresh during writes
     // (refreshing during writes would overwrite local changes with older Blob data)
     await ensureHydratedOnce();
-    const savedAt = await saveEventData(getDataForSave());
+    const dataToSave = getDataForSave();
+    console.log('[EventStore] Saving - heartChoice:', dataToSave.eventState.heartChoice, 'phase:', dataToSave.eventState.phase);
+    const savedAt = await saveEventData(dataToSave);
     // Update our tracking so subsequent refreshes know we have this version
     lastLoadedSavedAt = savedAt;
   }).catch(err => {
@@ -117,6 +120,7 @@ export async function getEventDataFresh(): Promise<EventDataWithSavedAt> {
         slides = savedData.slides || [...defaultSlideSlots];
         
         if (savedData.eventState) {
+          console.log('[EventStore] Loading from Blob - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
           eventState = {
             ...eventState,
             ...savedData.eventState,
