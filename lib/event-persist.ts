@@ -32,8 +32,10 @@ export async function saveEventData(data: {
     savedAt,
   };
 
-  // Log what we're saving
+  // Log what we're saving - include heartChoice and phase for debugging persistence
   console.log('[Persist] Saving to Blob:', {
+    heartChoice: data.eventState?.heartChoice,
+    phase: data.eventState?.phase,
     maleGuestsCount: data.maleGuests.length,
     maleGuestsWithVCR: data.maleGuests.filter(g => g.vcr1Url || g.vcr2Url).length,
     femaleGuestsCount: data.femaleGuests.length,
@@ -93,7 +95,11 @@ export async function loadEventData(): Promise<PersistedData | null> {
     }
 
     const data: PersistedData = await response.json();
-    console.log('[Persist] Event data loaded from Blob, saved at:', new Date(data.savedAt).toISOString());
+    console.log('[Persist] Event data loaded from Blob:', {
+      heartChoice: data.eventState?.heartChoice,
+      phase: data.eventState?.phase,
+      savedAt: new Date(data.savedAt).toISOString(),
+    });
     
     return data;
   } catch (error) {
