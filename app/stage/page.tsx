@@ -519,9 +519,22 @@ function HeartRevealAnimation({
     return () => timeouts.forEach(t => clearTimeout(t));
   }, []);
   
-  // Spinning animation - uses original setInterval logic that works!
+  // Track if spinning has started (to prevent re-running)
+  const spinStartedRef = useRef(false);
+  const currentHighlightRef = useRef(currentHighlight);
+  
+  // Keep ref in sync
   useEffect(() => {
-    if (animationPhase !== 'spinning' || eligibleIds.length === 0) return;
+    currentHighlightRef.current = currentHighlight;
+  }, [currentHighlight]);
+  
+  // Spinning animation - trigger once when phase becomes 'spinning'
+  useEffect(() => {
+    if (animationPhase !== 'spinning') return;
+    if (spinStartedRef.current) return; // Already started, don't restart
+    if (eligibleIds.length === 0) return;
+    
+    spinStartedRef.current = true;
     
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     const intervals: ReturnType<typeof setInterval>[] = [];
@@ -531,6 +544,7 @@ function HeartRevealAnimation({
       setCurrentHighlight(prev => {
         const currentIndex = eligibleIds.indexOf(prev);
         const nextIndex = (currentIndex + 1) % eligibleIds.length;
+        currentHighlightRef.current = eligibleIds[nextIndex];
         return eligibleIds[nextIndex];
       });
     }, 80);
@@ -544,6 +558,7 @@ function HeartRevealAnimation({
         setCurrentHighlight(prev => {
           const currentIndex = eligibleIds.indexOf(prev);
           const nextIndex = (currentIndex + 1) % eligibleIds.length;
+          currentHighlightRef.current = eligibleIds[nextIndex];
           return eligibleIds[nextIndex];
         });
       }, 150);
@@ -556,6 +571,7 @@ function HeartRevealAnimation({
           setCurrentHighlight(prev => {
             const currentIndex = eligibleIds.indexOf(prev);
             const nextIndex = (currentIndex + 1) % eligibleIds.length;
+            currentHighlightRef.current = eligibleIds[nextIndex];
             return eligibleIds[nextIndex];
           });
         }, 300);
@@ -565,37 +581,35 @@ function HeartRevealAnimation({
         timeouts.push(setTimeout(() => {
           clearInterval(slowInterval);
           
-          // Calculate steps to land on heartChoice - use functional update
-          setCurrentHighlight(prev => {
-            const targetIndex = eligibleIds.indexOf(heartChoice);
-            const currentIndex = eligibleIds.indexOf(prev);
-            const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
+          // Get current position from ref
+          const targetIndex = eligibleIds.indexOf(heartChoice);
+          const currentIndex = eligibleIds.indexOf(currentHighlightRef.current);
+          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
+          
+          let step = 0;
+          const finalInterval = setInterval(() => {
+            step++;
+            setCurrentHighlight(prev => {
+              const idx = eligibleIds.indexOf(prev);
+              const nextIdx = (idx + 1) % eligibleIds.length;
+              currentHighlightRef.current = eligibleIds[nextIdx];
+              return eligibleIds[nextIdx];
+            });
             
-            let step = 0;
-            const finalInterval = setInterval(() => {
-              step++;
-              setCurrentHighlight(p => {
-                const idx = eligibleIds.indexOf(p);
-                const nextIdx = (idx + 1) % eligibleIds.length;
-                return eligibleIds[nextIdx];
-              });
+            if (step >= stepsNeeded) {
+              clearInterval(finalInterval);
+              setCurrentHighlight(heartChoice);
+              currentHighlightRef.current = heartChoice;
+              setAnimationPhase('stopped');
               
-              if (step >= stepsNeeded) {
-                clearInterval(finalInterval);
-                setCurrentHighlight(heartChoice);
-                setAnimationPhase('stopped');
-                
-                // Reveal after short pause
-                setTimeout(() => {
-                  setAnimationPhase('reveal');
-                  setShowFinalCard(true);
-                }, 500);
-              }
-            }, 500);
-            intervals.push(finalInterval);
-            
-            return prev; // Return unchanged for now
-          });
+              // Reveal after short pause
+              setTimeout(() => {
+                setAnimationPhase('reveal');
+                setShowFinalCard(true);
+              }, 500);
+            }
+          }, 500);
+          intervals.push(finalInterval);
         }, 1000));
       }, 1000));
     }, 2000));
@@ -604,7 +618,9 @@ function HeartRevealAnimation({
       timeouts.forEach(t => clearTimeout(t));
       intervals.forEach(i => clearInterval(i));
     };
-  }, [animationPhase, eligibleIds, heartChoice]);
+    // Only run when animationPhase becomes 'spinning' for the first time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationPhase]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
