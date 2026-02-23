@@ -506,127 +506,103 @@ function HeartRevealAnimation({
     };
   }, [eligibleIds]);
   
-  // Entrance animation timeline
+  // Combined entrance + spinning animation in one effect
+  // This mirrors the original working logic but with entrance animation
   useEffect(() => {
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    
-    // Fade in background
-    timeouts.push(setTimeout(() => setBgOpacity(0.3), 100));
-    timeouts.push(setTimeout(() => setBgOpacity(0.6), 400));
-    timeouts.push(setTimeout(() => setBgOpacity(0.9), 800));
-    timeouts.push(setTimeout(() => setBgOpacity(1), 1200));
-    
-    // Form circle
-    timeouts.push(setTimeout(() => setFormCircle(true), 500));
-    
-    // Start spinning after entrance
-    timeouts.push(setTimeout(() => setAnimationPhase('spinning'), 2500));
-    
-    return () => timeouts.forEach(t => clearTimeout(t));
-  }, []);
-  
-  // Track if spinning has started (to prevent re-running)
-  const spinStartedRef = useRef(false);
-  const currentHighlightRef = useRef(currentHighlight);
-  
-  // Keep ref in sync
-  useEffect(() => {
-    currentHighlightRef.current = currentHighlight;
-  }, [currentHighlight]);
-  
-  // Spinning animation - trigger once when phase becomes 'spinning'
-  useEffect(() => {
-    if (animationPhase !== 'spinning') return;
-    if (spinStartedRef.current) return; // Already started, don't restart
     if (eligibleIds.length === 0) return;
     
-    spinStartedRef.current = true;
+    const allTimeouts: ReturnType<typeof setTimeout>[] = [];
+    const allIntervals: ReturnType<typeof setInterval>[] = [];
     
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    const intervals: ReturnType<typeof setInterval>[] = [];
+    // === ENTRANCE PHASE (0-2.5s) ===
+    allTimeouts.push(setTimeout(() => setBgOpacity(0.3), 100));
+    allTimeouts.push(setTimeout(() => setBgOpacity(0.6), 400));
+    allTimeouts.push(setTimeout(() => setBgOpacity(0.9), 800));
+    allTimeouts.push(setTimeout(() => setBgOpacity(1), 1200));
+    allTimeouts.push(setTimeout(() => setFormCircle(true), 500));
     
-    // Phase 1: Fast spinning - 80ms intervals
-    const fastInterval = setInterval(() => {
-      setCurrentHighlight(prev => {
-        const currentIndex = eligibleIds.indexOf(prev);
-        const nextIndex = (currentIndex + 1) % eligibleIds.length;
-        currentHighlightRef.current = eligibleIds[nextIndex];
-        return eligibleIds[nextIndex];
-      });
-    }, 80);
-    intervals.push(fastInterval);
+    // === SPINNING PHASE (starts at 2.5s) ===
+    const ENTRANCE_DELAY = 2500;
     
-    // Phase 2: Medium speed (after 2s) - 150ms intervals
-    timeouts.push(setTimeout(() => {
-      clearInterval(fastInterval);
-      setAnimationPhase('slowing');
-      const mediumInterval = setInterval(() => {
-        setCurrentHighlight(prev => {
-          const currentIndex = eligibleIds.indexOf(prev);
-          const nextIndex = (currentIndex + 1) % eligibleIds.length;
-          currentHighlightRef.current = eligibleIds[nextIndex];
-          return eligibleIds[nextIndex];
-        });
-      }, 150);
-      intervals.push(mediumInterval);
+    // Start spinning after entrance
+    allTimeouts.push(setTimeout(() => {
+      setAnimationPhase('spinning');
       
-      // Phase 3: Slow (after 1s more) - 300ms intervals
-      timeouts.push(setTimeout(() => {
-        clearInterval(mediumInterval);
-        const slowInterval = setInterval(() => {
-          setCurrentHighlight(prev => {
-            const currentIndex = eligibleIds.indexOf(prev);
-            const nextIndex = (currentIndex + 1) % eligibleIds.length;
-            currentHighlightRef.current = eligibleIds[nextIndex];
-            return eligibleIds[nextIndex];
-          });
-        }, 300);
-        intervals.push(slowInterval);
+      // Phase 1: Fast spinning - 80ms intervals (2s)
+      const fastInterval = setInterval(() => {
+        setCurrentHighlight(prev => {
+          const idx = eligibleIds.indexOf(prev);
+          return eligibleIds[(idx + 1) % eligibleIds.length];
+        });
+      }, 80);
+      allIntervals.push(fastInterval);
+      
+      // Phase 2: Medium speed - 150ms intervals (1s)
+      allTimeouts.push(setTimeout(() => {
+        clearInterval(fastInterval);
+        setAnimationPhase('slowing');
         
-        // Phase 4: Very slow (after 1s more) - approach target
-        timeouts.push(setTimeout(() => {
-          clearInterval(slowInterval);
+        const mediumInterval = setInterval(() => {
+          setCurrentHighlight(prev => {
+            const idx = eligibleIds.indexOf(prev);
+            return eligibleIds[(idx + 1) % eligibleIds.length];
+          });
+        }, 150);
+        allIntervals.push(mediumInterval);
+        
+        // Phase 3: Slow - 300ms intervals (1s)
+        allTimeouts.push(setTimeout(() => {
+          clearInterval(mediumInterval);
           
-          // Get current position from ref
-          const targetIndex = eligibleIds.indexOf(heartChoice);
-          const currentIndex = eligibleIds.indexOf(currentHighlightRef.current);
-          const stepsNeeded = ((targetIndex - currentIndex + eligibleIds.length) % eligibleIds.length) || eligibleIds.length;
-          
-          let step = 0;
-          const finalInterval = setInterval(() => {
-            step++;
+          const slowInterval = setInterval(() => {
             setCurrentHighlight(prev => {
               const idx = eligibleIds.indexOf(prev);
-              const nextIdx = (idx + 1) % eligibleIds.length;
-              currentHighlightRef.current = eligibleIds[nextIdx];
-              return eligibleIds[nextIdx];
+              return eligibleIds[(idx + 1) % eligibleIds.length];
             });
+          }, 300);
+          allIntervals.push(slowInterval);
+          
+          // Phase 4: Final approach - land on target
+          allTimeouts.push(setTimeout(() => {
+            clearInterval(slowInterval);
             
-            if (step >= stepsNeeded) {
-              clearInterval(finalInterval);
-              setCurrentHighlight(heartChoice);
-              currentHighlightRef.current = heartChoice;
-              setAnimationPhase('stopped');
+            // Take a few more dramatic slow steps, then land on target
+            let finalSteps = 0;
+            const targetSteps = 3 + Math.floor(Math.random() * 3); // 3-5 more steps
+            
+            const finalInterval = setInterval(() => {
+              finalSteps++;
               
-              // Reveal after short pause
-              setTimeout(() => {
-                setAnimationPhase('reveal');
-                setShowFinalCard(true);
-              }, 500);
-            }
-          }, 500);
-          intervals.push(finalInterval);
+              if (finalSteps < targetSteps) {
+                // Keep spinning
+                setCurrentHighlight(prev => {
+                  const idx = eligibleIds.indexOf(prev);
+                  return eligibleIds[(idx + 1) % eligibleIds.length];
+                });
+              } else {
+                // STOP exactly on heartChoice
+                clearInterval(finalInterval);
+                setCurrentHighlight(heartChoice);
+                setAnimationPhase('stopped');
+                
+                // Reveal after pause
+                allTimeouts.push(setTimeout(() => {
+                  setAnimationPhase('reveal');
+                  setShowFinalCard(true);
+                }, 800));
+              }
+            }, 500);
+            allIntervals.push(finalInterval);
+          }, 1000));
         }, 1000));
-      }, 1000));
-    }, 2000));
+      }, 2000));
+    }, ENTRANCE_DELAY));
     
     return () => {
-      timeouts.forEach(t => clearTimeout(t));
-      intervals.forEach(i => clearInterval(i));
+      allTimeouts.forEach(t => clearTimeout(t));
+      allIntervals.forEach(i => clearInterval(i));
     };
-    // Only run when animationPhase becomes 'spinning' for the first time
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animationPhase]);
+  }, [eligibleIds.length, heartChoice]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
