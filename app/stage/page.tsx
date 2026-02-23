@@ -484,15 +484,14 @@ function HeartRevealAnimation({
   const [bgOpacity, setBgOpacity] = useState(0);
   const [formCircle, setFormCircle] = useState(false);
   
-  // Only show guests with lights on (eligible candidates)
-  const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
-  const eligibleIds = eligibleGuests.map(g => g.id);
+  // All 12 guest IDs for spinning (show all, including lights off)
+  const allGuestIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   
   // Circle position calculator (vmin-based for true circle)
+  // Shows all 12 guests in a circle
   const getCirclePosition = useCallback((guestId: number) => {
-    const eligibleIndex = eligibleIds.indexOf(guestId);
-    if (eligibleIndex === -1) return { x: 50, y: 50 };
-    const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
+    const index = guestId - 1; // Guest IDs are 1-12, convert to 0-11
+    const angle = (index / 12) * 2 * Math.PI - Math.PI / 2; // Start from top
     
     // Use vmin-based radius for true circle
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
@@ -504,13 +503,10 @@ function HeartRevealAnimation({
       x: 50 + (Math.cos(angle) * radiusPx / vw) * 100,
       y: 50 + (Math.sin(angle) * radiusPx / vh) * 100,
     };
-  }, [eligibleIds]);
+  }, []);
   
   // Combined entrance + spinning animation in one effect
-  // This mirrors the original working logic but with entrance animation
   useEffect(() => {
-    if (eligibleIds.length === 0) return;
-    
     const allTimeouts: ReturnType<typeof setTimeout>[] = [];
     const allIntervals: ReturnType<typeof setInterval>[] = [];
     
@@ -524,16 +520,16 @@ function HeartRevealAnimation({
     // === SPINNING PHASE (starts at 2.5s) ===
     const ENTRANCE_DELAY = 2500;
     
+    // Spin through all 12 guests (1-12)
+    const nextGuest = (current: number) => (current % 12) + 1;
+    
     // Start spinning after entrance
     allTimeouts.push(setTimeout(() => {
       setAnimationPhase('spinning');
       
       // Phase 1: Fast spinning - 80ms intervals (2s)
       const fastInterval = setInterval(() => {
-        setCurrentHighlight(prev => {
-          const idx = eligibleIds.indexOf(prev);
-          return eligibleIds[(idx + 1) % eligibleIds.length];
-        });
+        setCurrentHighlight(prev => nextGuest(prev));
       }, 80);
       allIntervals.push(fastInterval);
       
@@ -543,10 +539,7 @@ function HeartRevealAnimation({
         setAnimationPhase('slowing');
         
         const mediumInterval = setInterval(() => {
-          setCurrentHighlight(prev => {
-            const idx = eligibleIds.indexOf(prev);
-            return eligibleIds[(idx + 1) % eligibleIds.length];
-          });
+          setCurrentHighlight(prev => nextGuest(prev));
         }, 150);
         allIntervals.push(mediumInterval);
         
@@ -555,10 +548,7 @@ function HeartRevealAnimation({
           clearInterval(mediumInterval);
           
           const slowInterval = setInterval(() => {
-            setCurrentHighlight(prev => {
-              const idx = eligibleIds.indexOf(prev);
-              return eligibleIds[(idx + 1) % eligibleIds.length];
-            });
+            setCurrentHighlight(prev => nextGuest(prev));
           }, 300);
           allIntervals.push(slowInterval);
           
@@ -575,10 +565,7 @@ function HeartRevealAnimation({
               
               if (finalSteps < targetSteps) {
                 // Keep spinning
-                setCurrentHighlight(prev => {
-                  const idx = eligibleIds.indexOf(prev);
-                  return eligibleIds[(idx + 1) % eligibleIds.length];
-                });
+                setCurrentHighlight(prev => nextGuest(prev));
               } else {
                 // STOP exactly on heartChoice
                 clearInterval(finalInterval);
@@ -602,7 +589,7 @@ function HeartRevealAnimation({
       allTimeouts.forEach(t => clearTimeout(t));
       allIntervals.forEach(i => clearInterval(i));
     };
-  }, [eligibleIds.length, heartChoice]);
+  }, [heartChoice]);
   
   const heartGuest = femaleGuests.find(g => g.id === heartChoice);
   const photos = heartGuest ? getGuestPhotos(heartGuest) : [];
@@ -669,18 +656,18 @@ function HeartRevealAnimation({
             const guestPhotos = guest ? getGuestPhotos(guest) : [];
             const isHighlighted = isSpinning && currentHighlight === guestId;
             const isStopped = animationPhase === 'stopped' && currentHighlight === guestId;
-            
-            // Ineligible guests fade out when forming circle
-            if (!isEligible && formCircle) return null;
+            const isLightOn = isEligible; // Show light status
             
             const scale = (isHighlighted || isStopped) ? 1.3 : 1;
-            const opacity = (isHighlighted || isStopped) ? 1 : isSpinning ? 0.6 : 1;
+            // Dimmed for lights off, brighter for lights on
+            const baseOpacity = isLightOn ? 1 : 0.5;
+            const opacity = (isHighlighted || isStopped) ? 1 : isSpinning ? 0.6 * baseOpacity : baseOpacity;
             
-            // Start from grid position, animate to circle
+            // Start from grid position, animate to circle (ALL guests)
             const startRow = guestId <= 6 ? 30 : 60;
             const startCol = ((guestId - 1) % 6) * 14 + 15;
-            const currentX = formCircle && isEligible ? circlePos.x : startCol;
-            const currentY = formCircle && isEligible ? circlePos.y : startRow;
+            const currentX = formCircle ? circlePos.x : startCol;
+            const currentY = formCircle ? circlePos.y : startRow;
             
             return (
               <div
@@ -699,16 +686,20 @@ function HeartRevealAnimation({
                 <div className={`w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden border-4 transition-all duration-300 ${
                   (isHighlighted || isStopped)
                     ? 'border-rose-400 shadow-[0_0_40px_rgba(251,113,133,0.9)]' 
-                    : 'border-white/50 shadow-lg'
+                    : isLightOn 
+                      ? 'border-white/50 shadow-lg' 
+                      : 'border-gray-500/50 shadow-md grayscale'
                 }`}>
                   {guestPhotos[0] ? (
                     <img 
                       src={guestPhotos[0]} 
                       alt={guest?.name || `${guestId}`}
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover ${!isLightOn && !isHighlighted && !isStopped ? 'grayscale' : ''}`}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-xl font-bold text-white">
+                    <div className={`w-full h-full flex items-center justify-center text-xl font-bold text-white ${
+                      isLightOn ? 'bg-gradient-to-br from-pink-400 to-rose-500' : 'bg-gray-600'
+                    }`}>
                       {guestId}
                     </div>
                   )}
@@ -717,7 +708,9 @@ function HeartRevealAnimation({
                 {/* Name label */}
                 {(isHighlighted || isStopped) && guest && (
                   <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap animate-in fade-in zoom-in duration-200">
-                    <span className="bg-rose-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                    <span className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-lg ${
+                      isLightOn ? 'bg-rose-500 text-white' : 'bg-gray-600 text-gray-200'
+                    }`}>
                       {guest.nickname || guest.name}
                     </span>
                   </div>
