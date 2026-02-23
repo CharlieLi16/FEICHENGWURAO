@@ -71,6 +71,16 @@ export async function POST(request: NextRequest) {
         const stateAfterBg = await updateEventState({ stageBackground: params.url || undefined });
         return NextResponse.json({ success: true, state: stateAfterBg });
 
+      case 'refresh':
+        // Force save and return fresh data - triggers SSE broadcast to all clients
+        const refreshState = await updateEventState({ lastUpdated: Date.now() });
+        const freshData = await getEventDataFresh();
+        return NextResponse.json({ 
+          success: true, 
+          state: refreshState,
+          ...freshData  // Include full data for the caller
+        });
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }

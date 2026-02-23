@@ -181,18 +181,24 @@ export function useEventStream() {
     }
   }, []);
 
-  // Force refresh state from server
+  // Force refresh state from server AND broadcast to all clients via SSE
   const forceRefresh = useCallback(async () => {
     return executeOperation(async () => {
       try {
+        // POST with action: 'refresh' triggers save and returns fresh data
+        // This also updates savedAt, causing SSE to broadcast to all clients
         const response = await fetchWithRetry(
           '/api/event/state',
-          { method: 'GET' }
+          { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'refresh' })
+          }
         );
-        const data = await response.json() as EventDataWithSavedAt;
-        if (data) {
+        const data = await response.json() as EventDataWithSavedAt & { success?: boolean };
+        if (data && data.success !== false) {
           // Extract and track savedAt separately
-          const { savedAt, ...eventDataOnly } = data;
+          const { savedAt, success, ...eventDataOnly } = data;
           if (savedAt) {
             setServerSavedAt(savedAt);
           }
