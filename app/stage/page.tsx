@@ -106,9 +106,9 @@ function MaleGuestCard({
 // Mini light for PiP overlay
 function MiniLight({ status }: { status: 'on' | 'off' | 'burst' }) {
   return (
-    <div className={`w-5 h-5 rounded-full transition-all ${
-      status === 'on' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
-      status === 'burst' ? 'bg-pink-500 shadow-[0_0_8px_rgba(236,72,153,0.8)] animate-pulse' :
+    <div className={`w-8 h-8 rounded-full transition-all ${
+      status === 'on' ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)]' :
+      status === 'burst' ? 'bg-pink-500 shadow-[0_0_12px_rgba(236,72,153,0.8)] animate-pulse' :
       'bg-gray-600'
     }`} />
   );
@@ -117,13 +117,13 @@ function MiniLight({ status }: { status: 'on' | 'off' | 'burst' }) {
 // Mini lights overlay for VCR PiP
 function MiniLightsOverlay({ lights }: { lights: Record<number, 'on' | 'off' | 'burst'> }) {
   return (
-    <div className="absolute top-4 left-4 z-[70] bg-black/70 backdrop-blur-sm rounded-xl p-3">
-      <div className="grid grid-cols-6 gap-1.5 mb-1.5">
+    <div className="absolute top-4 left-4 z-[70] bg-black/70 backdrop-blur-sm rounded-xl p-4">
+      <div className="grid grid-cols-6 gap-2 mb-2">
         {[1, 2, 3, 4, 5, 6].map(id => (
           <MiniLight key={id} status={lights[id] || 'on'} />
         ))}
       </div>
-      <div className="grid grid-cols-6 gap-1.5">
+      <div className="grid grid-cols-6 gap-2">
         {[7, 8, 9, 10, 11, 12].map(id => (
           <MiniLight key={id} status={lights[id] || 'on'} />
         ))}
@@ -488,15 +488,21 @@ function HeartRevealAnimation({
   const eligibleGuests = femaleGuests.filter(g => lights[g.id] !== 'off');
   const eligibleIds = eligibleGuests.map(g => g.id);
   
-  // Circle position calculator (percentage-based)
+  // Circle position calculator (vmin-based for true circle)
   const getCirclePosition = useCallback((guestId: number) => {
     const eligibleIndex = eligibleIds.indexOf(guestId);
     if (eligibleIndex === -1) return { x: 50, y: 50 };
     const angle = (eligibleIndex / eligibleIds.length) * 2 * Math.PI - Math.PI / 2;
-    const radius = 32; // percentage of viewport
+    
+    // Use vmin-based radius for true circle
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    const vmin = Math.min(vw, vh);
+    const radiusPx = vmin * 0.35; // 35% of smaller dimension
+    
     return {
-      x: 50 + Math.cos(angle) * radius,
-      y: 50 + Math.sin(angle) * radius,
+      x: 50 + (Math.cos(angle) * radiusPx / vw) * 100,
+      y: 50 + (Math.sin(angle) * radiusPx / vh) * 100,
     };
   }, [eligibleIds]);
   
