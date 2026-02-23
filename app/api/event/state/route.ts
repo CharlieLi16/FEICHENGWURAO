@@ -73,12 +73,11 @@ export async function POST(request: NextRequest) {
 
       case 'refresh':
         // Force save and return fresh data - triggers SSE broadcast to all clients
-        const refreshState = await updateEventState({ lastUpdated: Date.now() });
+        await updateEventState({ lastUpdated: Date.now() });
         const freshData = await getEventDataFresh();
         return NextResponse.json({ 
           success: true, 
-          state: refreshState,
-          ...freshData  // Include full data for the caller
+          ...freshData
         });
 
       default:
