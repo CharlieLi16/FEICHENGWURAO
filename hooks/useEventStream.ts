@@ -6,6 +6,39 @@ import { EventData, EventState, initialEventState, defaultSlideSlots } from '@/l
 // Operation status for Toast feedback
 export type OperationStatus = 'idle' | 'loading' | 'success' | 'error';
 
+// localStorage cache key
+const STORAGE_KEY = 'fei-event-state';
+
+// Cached state with savedAt timestamp
+interface CachedEventData extends EventData {
+  savedAt: number;
+}
+
+// Get cached state from localStorage
+function getCachedState(): CachedEventData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      return JSON.parse(cached) as CachedEventData;
+    }
+  } catch (e) {
+    console.warn('Failed to read localStorage cache:', e);
+  }
+  return null;
+}
+
+// Save state to localStorage
+function saveToCache(data: EventData, savedAt: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const cached: CachedEventData = { ...data, savedAt };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+  } catch (e) {
+    console.warn('Failed to save to localStorage:', e);
+  }
+}
+
 // Delay helper
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -60,21 +93,34 @@ interface EventDataWithSavedAt extends EventData {
 }
 
 export function useEventStream() {
-  const [eventData, setEventData] = useState<EventData>({
-    state: initialEventState,
-    femaleGuests: [],
-    maleGuests: [],
-    slides: defaultSlideSlots,
+  // Initialize from localStorage cache if available (for instant display on refresh)
+  const [eventData, setEventData] = useState<EventData>(() => {
+    const cached = getCachedState();
+    if (cached) {
+      const { savedAt, ...data } = cached;
+      return data;
+    }
+    return {
+      state: initialEventState,
+      femaleGuests: [],
+      maleGuests: [],
+      slides: defaultSlideSlots,
+    };
   });
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [operationStatus, setOperationStatus] = useState<OperationStatus>('idle');
   const [reconnectCountdown, setReconnectCountdown] = useState<number | null>(null);
-  // Track server's savedAt timestamp (useful for staleness detection)
-  const [serverSavedAt, setServerSavedAt] = useState<number>(0);
+  // Track savedAt timestamp (for staleness detection and cache comparison)
+  const [serverSavedAt, setServerSavedAt] = useState<number>(() => {
+    const cached = getCachedState();
+    return cached?.savedAt || 0;
+  });
   
   // Ref to track if we should show operation status
   const operationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref to track the latest savedAt we've processed (prevents stale SSE data from overwriting newer local data)
+  const latestSavedAtRef = useRef<number>(getCachedState()?.savedAt || 0);
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -97,12 +143,17 @@ export function useEventStream() {
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data) as EventDataWithSavedAt;
-            // Extract and track savedAt separately
             const { savedAt, ...eventDataOnly } = data;
-            if (savedAt) {
+            
+            // Only update if server data is newer than what we have
+            // This prevents stale Blob data from overwriting recent local updates
+            if (savedAt && savedAt > latestSavedAtRef.current) {
+              latestSavedAtRef.current = savedAt;
               setServerSavedAt(savedAt);
+              setEventData(eventDataOnly);
+              // Save to localStorage for refresh recovery
+              saveToCache(eventDataOnly, savedAt);
             }
-            setEventData(eventDataOnly);
           } catch (e) {
             console.error('Error parsing event data:', e);
           }
@@ -197,10 +248,12 @@ export function useEventStream() {
         );
         const data = await response.json() as EventDataWithSavedAt & { success?: boolean };
         if (data && data.success !== false) {
-          // Extract and track savedAt separately
           const { savedAt, success, ...eventDataOnly } = data;
           if (savedAt) {
+            latestSavedAtRef.current = savedAt;
             setServerSavedAt(savedAt);
+            // Save to localStorage
+            saveToCache(eventDataOnly, savedAt);
           }
           setEventData(eventDataOnly);
           return true;
@@ -238,15 +291,25 @@ export function useEventStream() {
       mutuallyExclusiveUpdates.vcrPlaying = false;
     }
     
+    // Generate new savedAt for this update (optimistic)
+    const newSavedAt = Date.now();
+    latestSavedAtRef.current = newSavedAt;
+    
     // Save previous state for rollback
     let previousState: EventState | null = null;
+    let previousSavedAt = serverSavedAt;
+    
     setEventData(prev => {
       previousState = prev.state;
-      return {
+      const newData = {
         ...prev,
-        state: { ...prev.state, ...mutuallyExclusiveUpdates, lastUpdated: Date.now() }
+        state: { ...prev.state, ...mutuallyExclusiveUpdates, lastUpdated: newSavedAt }
       };
+      // Save to localStorage immediately (optimistic)
+      saveToCache(newData, newSavedAt);
+      return newData;
     });
+    setServerSavedAt(newSavedAt);
     
     // Send to server
     const success = await executeOperation(async () => {
@@ -260,26 +323,40 @@ export function useEventStream() {
     
     // Rollback on failure
     if (!success && previousState) {
-      setEventData(prev => ({ ...prev, state: previousState! }));
+      latestSavedAtRef.current = previousSavedAt;
+      setServerSavedAt(previousSavedAt);
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: previousState! };
+        saveToCache(rolledBack, previousSavedAt);
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const setLight = useCallback(async (guestId: number, status: 'on' | 'off' | 'burst') => {
-    // Save previous lights for rollback
+    const newSavedAt = Date.now();
+    latestSavedAtRef.current = newSavedAt;
+    
+    // Save previous state for rollback
     let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    let previousSavedAt = serverSavedAt;
+    
     setEventData(prev => {
       previousLights = prev.state.lights;
-      return {
+      const newData = {
         ...prev,
         state: {
           ...prev.state,
           lights: { ...prev.state.lights, [guestId]: status },
-          lastUpdated: Date.now(),
+          lastUpdated: newSavedAt,
         }
       };
+      saveToCache(newData, newSavedAt);
+      return newData;
     });
+    setServerSavedAt(newSavedAt);
     
     const success = await executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
@@ -292,21 +369,29 @@ export function useEventStream() {
     
     // Rollback on failure
     if (!success && previousLights) {
-      setEventData(prev => ({
-        ...prev,
-        state: { ...prev.state, lights: previousLights! }
-      }));
+      latestSavedAtRef.current = previousSavedAt;
+      setServerSavedAt(previousSavedAt);
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: { ...prev.state, lights: previousLights! } };
+        saveToCache(rolledBack, previousSavedAt);
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const resetLights = useCallback(async () => {
-    // Save previous lights for rollback
+    const newSavedAt = Date.now();
+    latestSavedAtRef.current = newSavedAt;
+    
+    // Save previous state for rollback
     let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    let previousSavedAt = serverSavedAt;
+    
     setEventData(prev => {
       previousLights = prev.state.lights;
-      return {
+      const newData = {
         ...prev,
         state: {
           ...prev.state,
@@ -315,10 +400,13 @@ export function useEventStream() {
             5: 'on', 6: 'on', 7: 'on', 8: 'on',
             9: 'on', 10: 'on', 11: 'on', 12: 'on',
           },
-          lastUpdated: Date.now(),
+          lastUpdated: newSavedAt,
         }
       };
+      saveToCache(newData, newSavedAt);
+      return newData;
     });
+    setServerSavedAt(newSavedAt);
     
     const success = await executeOperation(async () => {
       const response = await fetchWithRetry('/api/event/state', {
@@ -331,14 +419,17 @@ export function useEventStream() {
     
     // Rollback on failure
     if (!success && previousLights) {
-      setEventData(prev => ({
-        ...prev,
-        state: { ...prev.state, lights: previousLights! }
-      }));
+      latestSavedAtRef.current = previousSavedAt;
+      setServerSavedAt(previousSavedAt);
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: { ...prev.state, lights: previousLights! } };
+        saveToCache(rolledBack, previousSavedAt);
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const resetEvent = useCallback(async () => {
     return executeOperation(async () => {
