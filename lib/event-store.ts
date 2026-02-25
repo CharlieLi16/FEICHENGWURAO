@@ -42,7 +42,6 @@ async function ensureHydratedOnce(): Promise<void> {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[EventStore] Hydration attempt ${attempt}/${maxRetries}...`);
         const savedData = await loadEventData();
         
         if (savedData) {
@@ -52,21 +51,17 @@ async function ensureHydratedOnce(): Promise<void> {
           maleGuests = savedData.maleGuests || [];
           slides = savedData.slides || [...defaultSlideSlots];
           if (savedData.eventState) {
-            console.log('[EventStore] Hydration - heartChoice:', savedData.eventState.heartChoice, 'phase:', savedData.eventState.phase);
             eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
           }
-          console.log('[EventStore] Hydrated from Blob successfully, savedAt:', new Date(savedData.savedAt).toISOString());
           hydrationSuccessful = true;
           return;
         } else {
           // No Blob data found (first deployment or empty) - this is OK, allow saves with defaults
-          console.log('[EventStore] No Blob data found, using defaults (first deployment)');
           hydrationSuccessful = true;
           return;
         }
       } catch (error) {
         lastError = error as Error;
-        console.error(`[EventStore] Hydration attempt ${attempt}/${maxRetries} failed:`, error);
         if (attempt < maxRetries) {
           await delay(500 * attempt); // Exponential backoff: 500ms, 1000ms, 1500ms
         }
@@ -75,7 +70,6 @@ async function ensureHydratedOnce(): Promise<void> {
     
     // All retries failed - clear promise so NEXT call can retry (not permanently locked!)
     hydrationPromise = null;
-    console.error('[EventStore] Hydration failed after all retries. Will retry on next request.');
     throw new Error(`Hydration failed after ${maxRetries} retries: ${lastError?.message}`);
   })();
 
@@ -128,7 +122,6 @@ export async function triggerSaveImmediate(): Promise<void> {
     }
     
     const dataToSave = getDataForSave();
-    console.log('[EventStore] Saving - heartChoice:', dataToSave.eventState.heartChoice, 'phase:', dataToSave.eventState.phase);
     const savedAt = await saveEventData(dataToSave);
     // Update our tracking so subsequent refreshes know we have this version
     lastLoadedSavedAt = savedAt;
@@ -164,8 +157,6 @@ export async function getEventDataFresh(): Promise<EventDataWithSavedAt> {
         lastUpdated: Date.now(),
       } : initialEventState;
       
-      console.log('[EventStore] Returning Blob data - heartChoice:', savedData.eventState?.heartChoice, 'phase:', savedData.eventState?.phase, 'savedAt:', new Date(savedData.savedAt).toISOString());
-      
       // Also update in-memory state to keep it in sync (for write operations)
       if (savedData.savedAt > lastLoadedSavedAt) {
         lastLoadedSavedAt = savedData.savedAt;
@@ -173,7 +164,6 @@ export async function getEventDataFresh(): Promise<EventDataWithSavedAt> {
         maleGuests = savedData.maleGuests || [];
         slides = savedData.slides || [...defaultSlideSlots];
         eventState = blobEventState;
-        console.log('[EventStore] Also updated in-memory state');
       }
       
       // Return Blob data directly (not in-memory cache)

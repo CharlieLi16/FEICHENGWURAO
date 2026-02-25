@@ -32,26 +32,15 @@ export async function saveEventData(data: {
     savedAt,
   };
 
-  // Log what we're saving - include heartChoice and phase for debugging persistence
-  console.log('[Persist] Saving to Blob:', {
-    heartChoice: data.eventState?.heartChoice,
-    phase: data.eventState?.phase,
-    maleGuestsCount: data.maleGuests.length,
-    maleGuestsWithVCR: data.maleGuests.filter(g => g.vcr1Url || g.vcr2Url).length,
-    femaleGuestsCount: data.femaleGuests.length,
-  });
-
   const json = JSON.stringify(persistedData, null, 2);
   
   // Single PUT with allowOverwrite: true allows overwriting existing file
-  const result = await put(BLOB_PATH, json, {
+  await put(BLOB_PATH, json, {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
     allowOverwrite: true,  // Required for overwriting existing blobs
   });
-
-  console.log('[Persist] Event data saved to Blob:', result.url);
   return savedAt;  // Return timestamp for caller to update their tracking
 }
 
@@ -95,12 +84,6 @@ export async function loadEventData(): Promise<PersistedData | null> {
     }
 
     const data: PersistedData = await response.json();
-    console.log('[Persist] Event data loaded from Blob:', {
-      heartChoice: data.eventState?.heartChoice,
-      phase: data.eventState?.phase,
-      savedAt: new Date(data.savedAt).toISOString(),
-    });
-    
     return data;
   } catch (error) {
     console.error('[Persist] Failed to load event data:', error);

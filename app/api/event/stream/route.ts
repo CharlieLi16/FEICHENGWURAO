@@ -6,7 +6,6 @@ import { getEventDataFresh } from '@/lib/event-store';
 export async function GET(request: NextRequest) {
   // Load fresh data from Blob before starting stream
   const initialData = await getEventDataFresh();
-  console.log('[SSE] New connection - initial heartChoice:', initialData.state.heartChoice, 'phase:', initialData.state.phase);
   
   const encoder = new TextEncoder();
   
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
         encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`)
       );
 
-      // Poll Blob every 500ms for cross-instance updates
+      // Poll Blob every 200ms for cross-instance updates
       // (More reliable than in-memory polling across serverless instances)
       intervalId = setInterval(async () => {
         try {
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
         } catch (e) {
           console.error('SSE error:', e);
         }
-      }, 500);  // 500ms - balance between responsiveness and Blob read costs
+      }, 200);  // 200ms - faster updates at slight cost increase
     },
     cancel() {
       if (intervalId) {
