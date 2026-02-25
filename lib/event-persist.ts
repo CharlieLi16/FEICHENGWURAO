@@ -27,6 +27,19 @@ export async function saveEventData(data: {
   backgroundBlur?: number;
 }): Promise<number> {
   const savedAt = Date.now();
+  await saveEventDataWithTimestamp(data, savedAt);
+  return savedAt;
+}
+
+// Save with a specific timestamp (for consistency between SSE push and Blob write)
+export async function saveEventDataWithTimestamp(data: {
+  femaleGuests: FemaleGuest[];
+  maleGuests: MaleGuest[];
+  slides: SlideSlot[];
+  eventState?: Partial<EventState>;
+  stageBackground?: string;
+  backgroundBlur?: number;
+}, savedAt: number): Promise<void> {
   const persistedData: PersistedData = {
     ...data,
     savedAt,
@@ -41,7 +54,6 @@ export async function saveEventData(data: {
     addRandomSuffix: false,
     allowOverwrite: true,  // Required for overwriting existing blobs
   });
-  return savedAt;  // Return timestamp for caller to update their tracking
 }
 
 // Load event data from Vercel Blob

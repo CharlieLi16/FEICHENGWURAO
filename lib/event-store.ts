@@ -1,7 +1,7 @@
 // In-memory event state store with Vercel Blob persistence
 
 import { EventState, EventData, FemaleGuest, MaleGuest, SlideSlot, initialEventState, defaultSlideSlots } from './event-state';
-import { loadEventData, saveEventData } from './event-persist';
+import { loadEventData, saveEventData, saveEventDataWithTimestamp } from './event-persist';
 
 // Global state (initialized with defaults, synced from Blob on first access)
 let eventState: EventState = { ...initialEventState };
@@ -107,7 +107,16 @@ function getDataForSave() {
 // CRITICAL: Uses mutex lock to prevent concurrent writes from stomping each other
 // CRITICAL: Hydrates ONCE on cold start, but does NOT refresh during writes (would lose local changes)
 // CRITICAL: Blocks saves if hydration failed (prevents empty state from overwriting good data)
+// NEW: Updates lastLoadedSavedAt BEFORE Blob write so SSE can push immediately
 export async function triggerSaveImmediate(): Promise<void> {
+  // Generate new savedAt timestamp IMMEDIATELY (before async operations)
+  // This allows notifySubscribers() to send the correct timestamp right away
+  const newSavedAt = Date.now();
+  lastLoadedSavedAt = newSavedAt;
+  
+  // Notify SSE subscribers IMMEDIATELY (same-instance, instant push)
+  notifySubscribers();
+  
   // Chain onto the save lock to serialize writes within this instance
   // This prevents: A reads V1, B reads V1, A writes V2, B writes V3 (loses A's changes)
   saveLock = saveLock.then(async () => {
@@ -122,19 +131,19 @@ export async function triggerSaveImmediate(): Promise<void> {
     }
     
     const dataToSave = getDataForSave();
-    const savedAt = await saveEventData(dataToSave);
-    // Update our tracking so subsequent refreshes know we have this version
-    lastLoadedSavedAt = savedAt;
+    // Use the pre-generated savedAt for consistency
+    await saveEventDataWithTimestamp(dataToSave, newSavedAt);
   }).catch(err => {
     // Log but don't break the lock chain
     console.error('[Persist] saveLock error:', err);
     throw err;
   });
-  return saveLock;
+  // Don't await - let Blob write happen in background for faster response
+  // return saveLock;  // Commented out - fire and forget
 }
 
-// Subscribers for SSE
-type Subscriber = (data: EventData) => void;
+// Subscribers for SSE - now includes savedAt for change detection
+type Subscriber = (data: EventDataWithSavedAt) => void;
 const subscribers: Set<Subscriber> = new Set();
 
 // Return type includes savedAt for SSE change detection
@@ -363,8 +372,11 @@ export async function resetEvent(): Promise<void> {
 // SSE subscription management
 export function subscribe(callback: Subscriber): () => void {
   subscribers.add(callback);
-  // Immediately send current state
-  callback(getEventData());
+  // Immediately send current state with savedAt
+  callback({
+    ...getEventData(),
+    savedAt: lastLoadedSavedAt,
+  });
   // Return unsubscribe function
   return () => {
     subscribers.delete(callback);
@@ -372,7 +384,10 @@ export function subscribe(callback: Subscriber): () => void {
 }
 
 function notifySubscribers(): void {
-  const data = getEventData();
+  const data: EventDataWithSavedAt = {
+    ...getEventData(),
+    savedAt: lastLoadedSavedAt,
+  };
   subscribers.forEach((callback) => {
     try {
       callback(data);

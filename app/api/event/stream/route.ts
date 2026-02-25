@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
-import { getEventDataFresh } from '@/lib/event-store';
+import { getEventDataFresh, subscribe, EventDataWithSavedAt } from '@/lib/event-store';
 
 // SSE endpoint for real-time updates
-// Polls Blob directly to ensure cross-instance consistency
+// Uses TWO mechanisms for reliability:
+// 1. In-memory subscription (instant updates for same-instance)
+// 2. Blob polling (cross-instance consistency fallback)
 export async function GET(request: NextRequest) {
   // Load fresh data from Blob before starting stream
   const initialData = await getEventDataFresh();
@@ -10,38 +12,55 @@ export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
   
   let intervalId: ReturnType<typeof setInterval> | null = null;
-  // Use savedAt (Blob timestamp) for change detection - strictly increasing and reliable
-  // (lastUpdated can change even when content is the same, causing unnecessary pushes)
+  let unsubscribe: (() => void) | null = null;
+  // Use savedAt for change detection - strictly increasing and reliable
   let lastSavedAt = initialData.savedAt;
 
   const stream = new ReadableStream({
     start(controller) {
-      // Send initial state (already loaded) - include savedAt for client to track
+      // Send initial state (already loaded)
       controller.enqueue(
         encoder.encode(`data: ${JSON.stringify(initialData)}\n\n`)
       );
 
-      // Poll Blob every 200ms for cross-instance updates
-      // (More reliable than in-memory polling across serverless instances)
+      // === INSTANT UPDATES: Subscribe to in-memory changes ===
+      // When POST happens on same instance, we get notified immediately
+      unsubscribe = subscribe((data: EventDataWithSavedAt) => {
+        // Only send if newer than what we've sent
+        if (data.savedAt > lastSavedAt) {
+          lastSavedAt = data.savedAt;
+          try {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+            );
+          } catch (e) {
+            // Stream may be closed
+          }
+        }
+      });
+
+      // === CROSS-INSTANCE FALLBACK: Poll Blob every 500ms ===
+      // Catches updates from other serverless instances
       intervalId = setInterval(async () => {
         try {
-          const data = await getEventDataFresh();  // Always read from Blob
-          // Only send if Blob data has actually changed (savedAt is strictly increasing)
+          const data = await getEventDataFresh();
           if (data.savedAt > lastSavedAt) {
             lastSavedAt = data.savedAt;
-            // Include savedAt - client can use it for staleness checks
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
             );
           }
         } catch (e) {
-          console.error('SSE error:', e);
+          // Ignore polling errors
         }
-      }, 200);  // 200ms - faster updates at slight cost increase
+      }, 500);  // 500ms for cross-instance (instant updates handle same-instance)
     },
     cancel() {
       if (intervalId) {
         clearInterval(intervalId);
+      }
+      if (unsubscribe) {
+        unsubscribe();
       }
     },
   });
