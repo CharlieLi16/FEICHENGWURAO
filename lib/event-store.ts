@@ -97,7 +97,9 @@ function getDataForSave() {
       vcrPlaying: eventState.vcrPlaying,
       vcrType: eventState.vcrType,
       message: eventState.message,
-      // Don't persist Director-only UI state: showingProfile, showingTag
+      // These are Director-controlled but Stage needs them for display
+      showingProfile: eventState.showingProfile,
+      showingTag: eventState.showingTag,
     },
   };
 }
