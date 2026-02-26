@@ -9,6 +9,37 @@ export type OperationStatus = 'idle' | 'loading' | 'success' | 'error';
 // Delay helper
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// ==================== localStorage Cache ====================
+const STORAGE_KEY = 'fei-event-state';
+
+interface CachedData extends EventData {
+  savedAt: number;
+}
+
+// Read cached state from localStorage
+function getCachedState(): CachedData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (!cached) return null;
+    return JSON.parse(cached) as CachedData;
+  } catch (e) {
+    console.error('[Cache] Failed to read:', e);
+    return null;
+  }
+}
+
+// Save state to localStorage cache
+function saveToCache(data: EventData, savedAt: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const cached: CachedData = { ...data, savedAt };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+  } catch (e) {
+    console.error('[Cache] Failed to save:', e);
+  }
+}
+
 // Fetch with timeout and retry
 async function fetchWithRetry(
   url: string, 
@@ -60,18 +91,20 @@ interface EventDataWithSavedAt extends EventData {
 }
 
 export function useEventStream() {
-  const [eventData, setEventData] = useState<EventData>({
-    state: initialEventState,
-    femaleGuests: [],
-    maleGuests: [],
-    slides: defaultSlideSlots,
-  });
+  // Initialize from cache if available (instant recovery on refresh)
+  const cachedData = typeof window !== 'undefined' ? getCachedState() : null;
+  
+  const [eventData, setEventData] = useState<EventData>(
+    cachedData 
+      ? { state: cachedData.state, femaleGuests: cachedData.femaleGuests, maleGuests: cachedData.maleGuests, slides: cachedData.slides }
+      : { state: initialEventState, femaleGuests: [], maleGuests: [], slides: defaultSlideSlots }
+  );
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [operationStatus, setOperationStatus] = useState<OperationStatus>('idle');
   const [reconnectCountdown, setReconnectCountdown] = useState<number | null>(null);
   // Track server's savedAt timestamp (useful for staleness detection)
-  const [serverSavedAt, setServerSavedAt] = useState<number>(0);
+  const [serverSavedAt, setServerSavedAt] = useState<number>(cachedData?.savedAt || 0);
   
   // Ref to track if we should show operation status
   const operationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,12 +130,19 @@ export function useEventStream() {
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data) as EventDataWithSavedAt;
-            // Extract and track savedAt separately
             const { savedAt, ...eventDataOnly } = data;
-            if (savedAt) {
-              setServerSavedAt(savedAt);
-            }
-            setEventData(eventDataOnly);
+            
+            // Only update if server data is newer than our cache
+            setServerSavedAt(prev => {
+              if (savedAt && savedAt > prev) {
+                // Server has newer data - update state and cache
+                setEventData(eventDataOnly);
+                saveToCache(eventDataOnly, savedAt);
+                return savedAt;
+              }
+              // Keep current state (cache is newer or same)
+              return prev;
+            });
           } catch (e) {
             console.error('Error parsing event data:', e);
           }
@@ -201,6 +241,7 @@ export function useEventStream() {
           const { savedAt, success, ...eventDataOnly } = data;
           if (savedAt) {
             setServerSavedAt(savedAt);
+            saveToCache(eventDataOnly, savedAt); // Sync to cache
           }
           setEventData(eventDataOnly);
           return true;
@@ -240,12 +281,18 @@ export function useEventStream() {
     
     // Save previous state for rollback
     let previousState: EventState | null = null;
+    let newEventData: EventData | null = null;
+    const now = Date.now();
+    
     setEventData(prev => {
       previousState = prev.state;
-      return {
+      newEventData = {
         ...prev,
-        state: { ...prev.state, ...mutuallyExclusiveUpdates, lastUpdated: Date.now() }
+        state: { ...prev.state, ...mutuallyExclusiveUpdates, lastUpdated: now }
       };
+      // Optimistic cache update
+      saveToCache(newEventData, now);
+      return newEventData;
     });
     
     // Send to server
@@ -258,27 +305,35 @@ export function useEventStream() {
       return response.ok;
     });
     
-    // Rollback on failure
+    // Rollback on failure (both state and cache)
     if (!success && previousState) {
-      setEventData(prev => ({ ...prev, state: previousState! }));
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: previousState! };
+        saveToCache(rolledBack, serverSavedAt); // Rollback cache too
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const setLight = useCallback(async (guestId: number, status: 'on' | 'off' | 'burst') => {
     // Save previous lights for rollback
     let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    const now = Date.now();
+    
     setEventData(prev => {
       previousLights = prev.state.lights;
-      return {
+      const newData = {
         ...prev,
         state: {
           ...prev.state,
           lights: { ...prev.state.lights, [guestId]: status },
-          lastUpdated: Date.now(),
+          lastUpdated: now,
         }
       };
+      saveToCache(newData, now); // Optimistic cache update
+      return newData;
     });
     
     const success = await executeOperation(async () => {
@@ -290,23 +345,26 @@ export function useEventStream() {
       return response.ok;
     });
     
-    // Rollback on failure
+    // Rollback on failure (both state and cache)
     if (!success && previousLights) {
-      setEventData(prev => ({
-        ...prev,
-        state: { ...prev.state, lights: previousLights! }
-      }));
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: { ...prev.state, lights: previousLights! } };
+        saveToCache(rolledBack, serverSavedAt); // Rollback cache too
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const resetLights = useCallback(async () => {
     // Save previous lights for rollback
     let previousLights: Record<number, 'on' | 'off' | 'burst'> | null = null;
+    const now = Date.now();
+    
     setEventData(prev => {
       previousLights = prev.state.lights;
-      return {
+      const newData = {
         ...prev,
         state: {
           ...prev.state,
@@ -315,9 +373,11 @@ export function useEventStream() {
             5: 'on', 6: 'on', 7: 'on', 8: 'on',
             9: 'on', 10: 'on', 11: 'on', 12: 'on',
           },
-          lastUpdated: Date.now(),
+          lastUpdated: now,
         }
       };
+      saveToCache(newData, now); // Optimistic cache update
+      return newData;
     });
     
     const success = await executeOperation(async () => {
@@ -329,16 +389,17 @@ export function useEventStream() {
       return response.ok;
     });
     
-    // Rollback on failure
+    // Rollback on failure (both state and cache)
     if (!success && previousLights) {
-      setEventData(prev => ({
-        ...prev,
-        state: { ...prev.state, lights: previousLights! }
-      }));
+      setEventData(prev => {
+        const rolledBack = { ...prev, state: { ...prev.state, lights: previousLights! } };
+        saveToCache(rolledBack, serverSavedAt); // Rollback cache too
+        return rolledBack;
+      });
     }
     
     return success;
-  }, [executeOperation]);
+  }, [executeOperation, serverSavedAt]);
 
   const resetEvent = useCallback(async () => {
     return executeOperation(async () => {
