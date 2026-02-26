@@ -1060,7 +1060,7 @@ export default function StagePage() {
         url={vcrUrl} 
         playing={state.vcrPlaying} 
         lights={state.lights}
-        introUrl={state.vcrIntroUrl}
+        introUrl={state.vcrType === 'vcr1' ? state.vcr1IntroUrl : state.vcr2IntroUrl}
         playingIntro={state.vcrPlayingIntro}
       />
 

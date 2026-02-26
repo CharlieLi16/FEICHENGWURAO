@@ -422,26 +422,52 @@ export default function DirectorPage() {
           <div className="bg-gray-800 rounded-xl p-4">
             <h2 className="text-lg font-semibold mb-3">🎬 VCR 控制</h2>
             
-            {/* Intro Video URL */}
-            <div className="mb-3">
-              <label className="text-sm text-gray-400 mb-1 block">片头视频 URL（可选）</label>
-              <input
-                type="text"
-                value={state.vcrIntroUrl || ''}
-                onChange={(e) => updateState({ vcrIntroUrl: e.target.value || undefined })}
-                placeholder="https://... 或留空不使用片头"
-                className="w-full px-3 py-2 bg-gray-700 rounded-lg text-sm placeholder-gray-500"
-              />
-              {state.vcrIntroUrl && (
-                <div className="mt-1 text-xs text-green-400">✓ 片头已设置</div>
+            {/* VCR1 Section */}
+            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">VCR1 片头</span>
+                {state.vcr1IntroUrl && (
+                  <button
+                    onClick={() => updateState({ vcr1IntroUrl: undefined })}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    删除
+                  </button>
+                )}
+              </div>
+              {state.vcr1IntroUrl ? (
+                <div className="text-xs text-green-400 truncate mb-2">✓ {state.vcr1IntroUrl.split('/').pop()}</div>
+              ) : (
+                <label className="block mb-2">
+                  <span className="text-xs text-gray-400">上传片头视频</span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      formData.append('name', 'vcr1_intro');
+                      try {
+                        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.fileUrl) {
+                          await updateState({ vcr1IntroUrl: data.fileUrl });
+                        }
+                      } catch (err) {
+                        console.error('Upload failed:', err);
+                      }
+                    }}
+                  />
+                  <div className="mt-1 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded text-center text-sm cursor-pointer">
+                    📤 上传 VCR1 片头
+                  </div>
+                </label>
               )}
-            </div>
-            
-            {/* VCR1 Controls */}
-            <div className="mb-2">
-              <div className="text-xs text-gray-400 mb-1">VCR1</div>
               <div className="flex gap-2">
-                {state.vcrIntroUrl && (
+                {state.vcr1IntroUrl && (
                   <button
                     onClick={() => {
                       playSound('vcrStart');
@@ -472,11 +498,52 @@ export default function DirectorPage() {
               </div>
             </div>
             
-            {/* VCR2 Controls */}
-            <div className="mb-3">
-              <div className="text-xs text-gray-400 mb-1">VCR2</div>
+            {/* VCR2 Section */}
+            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">VCR2 片头</span>
+                {state.vcr2IntroUrl && (
+                  <button
+                    onClick={() => updateState({ vcr2IntroUrl: undefined })}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    删除
+                  </button>
+                )}
+              </div>
+              {state.vcr2IntroUrl ? (
+                <div className="text-xs text-green-400 truncate mb-2">✓ {state.vcr2IntroUrl.split('/').pop()}</div>
+              ) : (
+                <label className="block mb-2">
+                  <span className="text-xs text-gray-400">上传片头视频</span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      formData.append('name', 'vcr2_intro');
+                      try {
+                        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.fileUrl) {
+                          await updateState({ vcr2IntroUrl: data.fileUrl });
+                        }
+                      } catch (err) {
+                        console.error('Upload failed:', err);
+                      }
+                    }}
+                  />
+                  <div className="mt-1 px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded text-center text-sm cursor-pointer">
+                    📤 上传 VCR2 片头
+                  </div>
+                </label>
+              )}
               <div className="flex gap-2">
-                {state.vcrIntroUrl && (
+                {state.vcr2IntroUrl && (
                   <button
                     onClick={() => {
                       playSound('vcrStart');

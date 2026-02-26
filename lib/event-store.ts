@@ -96,7 +96,8 @@ function getDataForSave() {
       currentSlide: eventState.currentSlide,
       vcrPlaying: eventState.vcrPlaying,
       vcrType: eventState.vcrType,
-      vcrIntroUrl: eventState.vcrIntroUrl,
+      vcr1IntroUrl: eventState.vcr1IntroUrl,
+      vcr2IntroUrl: eventState.vcr2IntroUrl,
       vcrPlayingIntro: eventState.vcrPlayingIntro,
       message: eventState.message,
       // These are Director-controlled but Stage needs them for display
