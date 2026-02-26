@@ -789,7 +789,18 @@ function HeartRevealAnimation({
 }
 
 // Google Slides Overlay for female guest intro - Native embed (fullscreen 16:9)
-function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; presentationId: string }) {
+// slideIndex: 0-based slide index to display
+// For new structure: each guest has 4 slides (intro + 3 tags)
+// Guest N intro: (N-1)*4, Guest N tag i: (N-1)*4 + i + 1
+function GoogleSlidesOverlay({ 
+  slideIndex, 
+  presentationId,
+  onClose 
+}: { 
+  slideIndex: number; 
+  presentationId: string;
+  onClose?: () => void;
+}) {
   const [loading, setLoading] = useState(true);
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -818,8 +829,8 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
   }, []);
   
   // Google Slides embed URL - directly embeds the presentation
-  // rm=minimal removes chrome, slide parameter goes to specific slide
-  const embedUrl = `https://docs.google.com/presentation/d/${presentationId}/embed?rm=minimal&start=false&loop=false&slide=${guestId}`;
+  // rm=minimal removes chrome, slide parameter goes to specific slide (0-based)
+  const embedUrl = `https://docs.google.com/presentation/d/${presentationId}/embed?rm=minimal&start=false&loop=false&slide=${slideIndex}`;
   
   return (
     <div ref={containerRef} className="fixed inset-0 z-50 overflow-hidden bg-black">
@@ -859,8 +870,28 @@ function GoogleSlidesOverlay({ guestId, presentationId }: { guestId: number; pre
           />
         </div>
       </div>
+      
+      {/* Close button (if onClose provided) */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-60 bg-black/50 hover:bg-black/70 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-colors"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
+}
+
+// Helper to calculate slide index for a guest
+// Each guest has 4 slides: intro + 3 tags
+function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
+  const baseIndex = (guestId - 1) * 4;
+  if (tagIndex === undefined) {
+    return baseIndex; // Intro slide
+  }
+  return baseIndex + tagIndex + 1; // Tag slide (0-indexed tag)
 }
 
 export default function StagePage() {
@@ -872,6 +903,8 @@ export default function StagePage() {
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(defaultTemplateConfig);
   const [googleSlidesId, setGoogleSlidesId] = useState<string | null>(null);
+  // Track which tag slide is being shown (null = none, 0-2 = tag index)
+  const [showingTagSlide, setShowingTagSlide] = useState<number | null>(null);
 
   // Load template config
   useEffect(() => {
@@ -896,6 +929,11 @@ export default function StagePage() {
       })
       .catch(err => console.error('Failed to load Google Slides config:', err));
   }, []);
+
+  // Clear tag slide when profile changes
+  useEffect(() => {
+    setShowingTagSlide(null);
+  }, [state.showingProfile]);
 
   // Update clock
   useEffect(() => {
@@ -1005,7 +1043,7 @@ export default function StagePage() {
 
       {/* Fullscreen Female Introduction - Google Slides or Template */}
       {state.currentFemaleIntro && state.useGoogleSlides && googleSlidesId ? (
-        <GoogleSlidesOverlay guestId={state.currentFemaleIntro} presentationId={googleSlidesId} />
+        <GoogleSlidesOverlay slideIndex={getGuestSlideIndex(state.currentFemaleIntro)} presentationId={googleSlidesId} />
       ) : currentFemaleForIntro ? (
         <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
       ) : null}
@@ -1118,26 +1156,39 @@ export default function StagePage() {
                       <p className="text-pink-300">{guest.age}岁 · {guest.school}</p>
                     </div>
                     
-                    {/* Tags */}
+                    {/* Clickable Tags - click to show Google Slide */}
                     <div className="space-y-3">
                       {guest.tags.map((tag, index) => (
-                        <div 
+                        <button 
                           key={index}
-                          className={`p-4 rounded-xl transition-all ${
+                          onClick={() => {
+                            if (googleSlidesId) {
+                              setShowingTagSlide(index);
+                            }
+                          }}
+                          disabled={!googleSlidesId}
+                          className={`w-full text-left p-4 rounded-xl transition-all ${
                             state.showingTag === null || state.showingTag === index
-                              ? 'bg-white/20'
+                              ? 'bg-white/20 hover:bg-white/30'
                               : 'bg-white/5 opacity-50'
-                          }`}
+                          } ${googleSlidesId ? 'cursor-pointer' : 'cursor-default'}`}
                         >
-                          <div className="text-sm text-pink-300 mb-1">标签 {index + 1}</div>
-                          <div className={`font-medium ${
-                            state.showingTag === null || state.showingTag === index
-                              ? 'text-white'
-                              : 'text-gray-400 blur-sm'
-                          }`}>
-                            {tag}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm text-pink-300 mb-1">标签 {index + 1}</div>
+                              <div className={`font-medium ${
+                                state.showingTag === null || state.showingTag === index
+                                  ? 'text-white'
+                                  : 'text-gray-400 blur-sm'
+                              }`}>
+                                {tag}
+                              </div>
+                            </div>
+                            {googleSlidesId && (
+                              <span className="text-pink-400 text-xl">▶</span>
+                            )}
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </>
@@ -1145,6 +1196,15 @@ export default function StagePage() {
               })()}
             </div>
           </div>
+        )}
+
+        {/* Tag Slide Overlay - shows when a tag is clicked */}
+        {state.showingProfile && showingTagSlide !== null && googleSlidesId && (
+          <GoogleSlidesOverlay 
+            slideIndex={getGuestSlideIndex(state.showingProfile, showingTagSlide)} 
+            presentationId={googleSlidesId}
+            onClose={() => setShowingTagSlide(null)}
+          />
         )}
       </main>
 
