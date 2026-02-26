@@ -420,38 +420,105 @@ export default function DirectorPage() {
 
           {/* VCR Control */}
           <div className="bg-gray-800 rounded-xl p-4">
-            <h2 className="text-lg font-semibold mb-3">VCR 控制</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  playSound('vcrStart');
-                  updateState({ vcrType: 'vcr1', vcrPlaying: true });
-                }}
-                className={`flex-1 py-3 rounded-lg ${state.vcrType === 'vcr1' && state.vcrPlaying ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'}`}
-              >
-                ▶️ VCR1
-              </button>
-              <button
-                onClick={() => {
-                  playSound('vcrStart');
-                  updateState({ vcrType: 'vcr2', vcrPlaying: true });
-                }}
-                className={`flex-1 py-3 rounded-lg ${state.vcrType === 'vcr2' && state.vcrPlaying ? 'bg-blue-500' : 'bg-gray-700 hover:bg-gray-600'}`}
-              >
-                ▶️ VCR2
-              </button>
-              <button
-                onClick={() => updateState({ vcrPlaying: false })}
-                disabled={!state.vcrPlaying}
-                className={`py-3 px-4 rounded-lg transition-all ${
-                  state.vcrPlaying 
-                    ? 'bg-red-600 hover:bg-red-500 animate-pulse' 
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                ⏹️
-              </button>
+            <h2 className="text-lg font-semibold mb-3">🎬 VCR 控制</h2>
+            
+            {/* Intro Video URL */}
+            <div className="mb-3">
+              <label className="text-sm text-gray-400 mb-1 block">片头视频 URL（可选）</label>
+              <input
+                type="text"
+                value={state.vcrIntroUrl || ''}
+                onChange={(e) => updateState({ vcrIntroUrl: e.target.value || undefined })}
+                placeholder="https://... 或留空不使用片头"
+                className="w-full px-3 py-2 bg-gray-700 rounded-lg text-sm placeholder-gray-500"
+              />
+              {state.vcrIntroUrl && (
+                <div className="mt-1 text-xs text-green-400">✓ 片头已设置</div>
+              )}
             </div>
+            
+            {/* VCR1 Controls */}
+            <div className="mb-2">
+              <div className="text-xs text-gray-400 mb-1">VCR1</div>
+              <div className="flex gap-2">
+                {state.vcrIntroUrl && (
+                  <button
+                    onClick={() => {
+                      playSound('vcrStart');
+                      updateState({ vcrType: 'vcr1', vcrPlaying: true, vcrPlayingIntro: true });
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-sm ${
+                      state.vcrType === 'vcr1' && state.vcrPlaying && state.vcrPlayingIntro 
+                        ? 'bg-purple-500' 
+                        : 'bg-purple-700 hover:bg-purple-600'
+                    }`}
+                  >
+                    🎬 带片头
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    playSound('vcrStart');
+                    updateState({ vcrType: 'vcr1', vcrPlaying: true, vcrPlayingIntro: false });
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm ${
+                    state.vcrType === 'vcr1' && state.vcrPlaying && !state.vcrPlayingIntro 
+                      ? 'bg-blue-500' 
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                >
+                  ▶️ 直接播放
+                </button>
+              </div>
+            </div>
+            
+            {/* VCR2 Controls */}
+            <div className="mb-3">
+              <div className="text-xs text-gray-400 mb-1">VCR2</div>
+              <div className="flex gap-2">
+                {state.vcrIntroUrl && (
+                  <button
+                    onClick={() => {
+                      playSound('vcrStart');
+                      updateState({ vcrType: 'vcr2', vcrPlaying: true, vcrPlayingIntro: true });
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-sm ${
+                      state.vcrType === 'vcr2' && state.vcrPlaying && state.vcrPlayingIntro 
+                        ? 'bg-purple-500' 
+                        : 'bg-purple-700 hover:bg-purple-600'
+                    }`}
+                  >
+                    🎬 带片头
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    playSound('vcrStart');
+                    updateState({ vcrType: 'vcr2', vcrPlaying: true, vcrPlayingIntro: false });
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-sm ${
+                    state.vcrType === 'vcr2' && state.vcrPlaying && !state.vcrPlayingIntro 
+                      ? 'bg-blue-500' 
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                >
+                  ▶️ 直接播放
+                </button>
+              </div>
+            </div>
+            
+            {/* Stop Button */}
+            <button
+              onClick={() => updateState({ vcrPlaying: false, vcrPlayingIntro: false })}
+              disabled={!state.vcrPlaying}
+              className={`w-full py-3 rounded-lg transition-all font-medium ${
+                state.vcrPlaying 
+                  ? 'bg-red-600 hover:bg-red-500 animate-pulse' 
+                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              ⏹️ 停止播放
+            </button>
           </div>
 
           {/* Final Result Buttons */}

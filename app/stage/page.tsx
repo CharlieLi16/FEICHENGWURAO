@@ -134,44 +134,80 @@ function MiniLightsOverlay({ lights }: { lights: Record<number, 'on' | 'off' | '
 
 // VCR Video Player - True fullscreen with PiP lights
 // READ-ONLY: No close button - VCR is controlled only from Director panel
+// Supports optional intro video that plays before main VCR
 function VCRPlayer({ 
   url, 
   playing, 
-  lights 
+  lights,
+  introUrl,
+  playingIntro
 }: { 
   url?: string; 
   playing: boolean; 
   lights: Record<number, 'on' | 'off' | 'burst'>;
+  introUrl?: string;
+  playingIntro?: boolean;
 }) {
-  if (!url || !playing) return null;
+  // Track if intro has finished (local state for seamless transition)
+  const [introFinished, setIntroFinished] = useState(false);
+  
+  // Reset intro state when a new VCR session starts
+  useEffect(() => {
+    if (!playing) {
+      setIntroFinished(false);
+    }
+  }, [playing]);
+  
+  if (!playing) return null;
+  
+  // Determine which video to show
+  const showIntro = playingIntro && introUrl && !introFinished;
+  const currentUrl = showIntro ? introUrl : url;
+  
+  if (!currentUrl) return null;
+  
+  const handleIntroEnded = () => {
+    // Intro finished, switch to main VCR
+    setIntroFinished(true);
+  };
   
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Mini lights PiP */}
       <MiniLightsOverlay lights={lights} />
       
+      {/* Intro indicator */}
+      {showIntro && (
+        <div className="absolute top-4 left-4 z-10 bg-purple-600/80 px-4 py-2 rounded-full text-white text-sm font-medium animate-pulse">
+          🎬 片头播放中...
+        </div>
+      )}
+      
       {/* Video - true fullscreen */}
-      {url.includes('youtube') || url.includes('youtu.be') ? (
+      {currentUrl.includes('youtube') || currentUrl.includes('youtu.be') ? (
         <iframe
-          src={url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=1'}
+          key={showIntro ? 'intro' : 'main'}
+          src={currentUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=1'}
           className="w-full h-full"
           allow="autoplay; encrypted-media"
           allowFullScreen
         />
-      ) : url.includes('bilibili') ? (
+      ) : currentUrl.includes('bilibili') ? (
         <iframe
-          src={url}
+          key={showIntro ? 'intro' : 'main'}
+          src={currentUrl}
           className="w-full h-full"
           allow="autoplay"
           allowFullScreen
         />
       ) : (
         <video
-          src={url}
+          key={showIntro ? 'intro' : 'main'}
+          src={currentUrl}
           className="w-full h-full object-contain bg-black"
           autoPlay
           controls
-          // No onEnded handler - VCR stop is controlled from Director panel
+          onEnded={showIntro ? handleIntroEnded : undefined}
         />
       )}
     </div>
@@ -1024,6 +1060,8 @@ export default function StagePage() {
         url={vcrUrl} 
         playing={state.vcrPlaying} 
         lights={state.lights}
+        introUrl={state.vcrIntroUrl}
+        playingIntro={state.vcrPlayingIntro}
       />
 
       {/* Question Bubble - shows during "您的需求是？" phase */}

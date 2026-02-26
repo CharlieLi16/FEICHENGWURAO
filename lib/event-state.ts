@@ -106,6 +106,8 @@ export interface EventState {
   currentFemaleIntro: number | null; // Which female is being introduced (fullscreen)
   vcrPlaying: boolean;
   vcrType: 'vcr1' | 'vcr2' | null;
+  vcrIntroUrl?: string;             // VCR intro/opener video URL
+  vcrPlayingIntro?: boolean;        // Currently playing intro (before main VCR)
   message: string;                  // Current phase message/title
   currentSlide: string | null;      // Current slide ID being shown (fullscreen)
   stageBackground?: string;         // Custom stage background image URL
