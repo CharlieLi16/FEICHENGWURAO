@@ -884,14 +884,16 @@ function GoogleSlidesOverlay({
   );
 }
 
-// Helper to calculate slide index for a guest
+// Helper to calculate slide index for a guest (1-indexed for Google Slides)
 // Each guest has 4 slides: intro + 3 tags
+// Guest 1: slides 1-4, Guest 2: slides 5-8, etc.
 function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
-  const baseIndex = (guestId - 1) * 4;
+  // Base index: Guest 1 starts at slide 1, Guest 2 at slide 5, etc.
+  const baseIndex = (guestId - 1) * 4 + 1;
   if (tagIndex === undefined) {
     return baseIndex; // Intro slide
   }
-  return baseIndex + tagIndex + 1; // Tag slide (0-indexed tag)
+  return baseIndex + tagIndex + 1; // Tag slide (tagIndex is 0-indexed)
 }
 
 export default function StagePage() {
