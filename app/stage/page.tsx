@@ -1274,42 +1274,25 @@ export default function StagePage() {
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
               <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-pink-500/10 rounded-full blur-3xl" />
             </div>
             
-            {/* Content */}
-            <div className="relative z-10 text-center max-w-4xl mx-auto px-8">
-              {/* Photo */}
-              <div className="mb-8">
-                {currentMale.photo ? (
-                  <img 
-                    src={currentMale.photo} 
-                    alt={currentMale.name} 
-                    className="w-40 h-40 md:w-52 md:h-52 rounded-full object-cover mx-auto border-4 border-blue-400 shadow-2xl shadow-blue-500/30"
-                  />
-                ) : (
-                  <div className="w-40 h-40 md:w-52 md:h-52 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-6xl mx-auto border-4 border-blue-400 shadow-2xl shadow-blue-500/30">
-                    👤
-                  </div>
-                )}
-              </div>
+            {/* Content - simple quote style */}
+            <div className="relative z-10 text-center max-w-5xl mx-auto px-8">
+              {/* Large quote marks */}
+              <div className="text-8xl md:text-9xl text-white/20 font-serif leading-none mb-4">"</div>
               
-              {/* Name */}
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-                {currentMale.nickname || currentMale.name}
-              </h2>
-              
-              {/* Question label */}
-              <p className="text-blue-300 text-xl md:text-2xl mb-4 tracking-wider">
-                💭 我的问题
+              {/* Question text - clean and large */}
+              <p className="text-white text-4xl md:text-6xl font-bold leading-relaxed -mt-12">
+                {currentMale.question || '...'}
               </p>
               
-              {/* Question text */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl px-8 py-6 md:px-12 md:py-8 border border-white/20">
-                <p className="text-white text-2xl md:text-4xl font-bold leading-relaxed">
-                  {currentMale.question || '...'}
-                </p>
-              </div>
+              {/* Closing quote */}
+              <div className="text-8xl md:text-9xl text-white/20 font-serif leading-none mt-4">"</div>
+              
+              {/* Name attribution */}
+              <p className="text-blue-300 text-xl md:text-2xl mt-8">
+                —— {currentMale.nickname || currentMale.name}
+              </p>
             </div>
           </div>
         )}
