@@ -933,8 +933,8 @@ function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
 }
 
 export default function StagePage() {
-  // Stage is READ-ONLY - no updateState needed, all control from Director panel
-  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
+  // Stage is mostly READ-ONLY, but can clear sound state
+  const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
   const { play, stopAll } = useSound();
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
@@ -1316,7 +1316,11 @@ export default function StagePage() {
 
       {/* Stop all sounds button - subtle, bottom-right */}
       <button
-        onClick={stopAll}
+        onClick={() => {
+          stopAll();
+          // Clear sound state so refresh won't replay
+          updateState({ soundToPlay: undefined, soundTimestamp: undefined });
+        }}
         className="fixed bottom-4 right-4 z-50 p-3 bg-black/30 hover:bg-red-600/80 rounded-full opacity-30 hover:opacity-100 transition-all"
         title="停止所有音效"
       >
