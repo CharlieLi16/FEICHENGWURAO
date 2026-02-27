@@ -1093,6 +1093,16 @@ export default function StagePage() {
           slideIndex={currentSlide.googleSlideIndex - 1} 
           presentationId={customSlidesId} 
         />
+      ) : currentSlide?.googleSlideIndex && !customSlidesId ? (
+        // Google Slides not configured - show warning
+        <div className="fixed inset-0 z-50 bg-gray-900 flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold text-yellow-400 mb-2">Google Slides 未配置</h2>
+            <p className="text-gray-400">请在「幻灯片管理」页面配置 Google Slides 链接</p>
+            <p className="text-gray-500 text-sm mt-2">幻灯片: {currentSlide.name} (第{currentSlide.googleSlideIndex}页)</p>
+          </div>
+        </div>
       ) : currentSlide?.imageUrl ? (
         <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} blur={blurValue} />
       ) : null}
