@@ -36,21 +36,24 @@ export interface FemaleGuest {
 }
 
 // Helper to get photos from guest (handles backward compatibility)
+// Priority: photo field first (most reliable - what's shown in setup page),
+// then additional photos from photos array
 export function getGuestPhotos(guest: FemaleGuest): string[] {
-  // Filter valid photos from the array
-  const validPhotos = guest.photos?.filter(url => url && url.trim()) || [];
+  const result: string[] = [];
   
-  // If we have valid photos in the array, use those
-  if (validPhotos.length > 0) {
-    return validPhotos;
-  }
-  
-  // Fallback to single photo field (legacy or manual upload)
+  // Primary photo field takes priority (this is what setup page displays)
   if (guest.photo && guest.photo.trim()) {
-    return [guest.photo];
+    result.push(guest.photo);
   }
   
-  return [];
+  // Add additional photos from array (skip if same as primary photo)
+  const additionalPhotos = guest.photos?.filter(url => 
+    url && url.trim() && url !== guest.photo
+  ) || [];
+  
+  result.push(...additionalPhotos);
+  
+  return result;
 }
 
 export interface MaleGuest {
