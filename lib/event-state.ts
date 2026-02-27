@@ -100,7 +100,7 @@ export interface EventState {
   currentMaleGuest: number;         // 1-6, which male guest is on stage
   currentRound: number;             // 1-6, which round
   lights: Record<number, LightStatus>;  // 1-12 female guest lights
-  heartChoice: number | null;       // Male's secret heart choice
+  heartChoices: Record<number, number | null>;  // Each male guest's secret heart choice (maleId -> femaleId)
   showingProfile: number | null;    // Which female's profile is showing (popup)
   showingTag: number | null;        // Which tag index (0-2) is revealed
   currentFemaleIntro: number | null; // Which female is being introduced (fullscreen)
@@ -134,7 +134,7 @@ export const initialEventState: EventState = {
     5: 'on', 6: 'on', 7: 'on', 8: 'on',
     9: 'on', 10: 'on', 11: 'on', 12: 'on',
   },
-  heartChoice: null,
+  heartChoices: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
   showingProfile: null,
   showingTag: null,
   currentFemaleIntro: null,

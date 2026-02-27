@@ -1073,9 +1073,9 @@ export default function StagePage() {
       )}
 
       {/* Heart Reveal Animation - shows during "心动女生揭晓" phase */}
-      {state.phase === 'heart_reveal' && state.heartChoice && (
+      {state.phase === 'heart_reveal' && state.heartChoices[state.currentMaleGuest] && (
         <HeartRevealAnimation
-          heartChoice={state.heartChoice}
+          heartChoice={state.heartChoices[state.currentMaleGuest]!}
           femaleGuests={femaleGuests}
           lights={state.lights}
         />

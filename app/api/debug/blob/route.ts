@@ -36,7 +36,7 @@ export async function GET() {
       blobCount: blobs.length,
       blobs: blobInfo,
       content: {
-        heartChoice: data.eventState?.heartChoice,
+        heartChoices: data.eventState?.heartChoices,
         phase: data.eventState?.phase,
         savedAt: data.savedAt ? new Date(data.savedAt).toISOString() : null,
         maleGuestsCount: data.maleGuests?.length,

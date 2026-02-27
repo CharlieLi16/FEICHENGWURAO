@@ -87,7 +87,7 @@ function getDataForSave() {
       currentMaleGuest: eventState.currentMaleGuest,
       currentRound: eventState.currentRound,
       lights: eventState.lights,
-      heartChoice: eventState.heartChoice,
+      heartChoices: eventState.heartChoices,
       stageBackground: eventState.stageBackground,
       backgroundBlur: eventState.backgroundBlur,
       useGoogleSlides: eventState.useGoogleSlides,
@@ -228,7 +228,7 @@ export async function updateEventState(updates: Partial<EventState>): Promise<Ev
   // IMMEDIATE save for runtime state changes - ensures consistency across instances
   // Includes all persisted fields (core + stage-critical)
   const persistKeys = [
-    'phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 
+    'phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoices', 
     'stageBackground', 'backgroundBlur', 'useGoogleSlides',
     // Stage-critical fields (舞台需要这些)
     'currentFemaleIntro', 'currentSlide', 'vcrPlaying', 'vcrType', 'message',

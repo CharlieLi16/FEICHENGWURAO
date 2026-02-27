@@ -237,7 +237,7 @@ export default function DirectorPage() {
       currentMaleGuest: maleId,
       currentRound: maleId,
       phase: 'male_enter',
-      heartChoice: null,
+      // Don't reset heartChoices - each male keeps their choice
       showingProfile: null,
       showingTag: null,
       vcrPlaying: false,
@@ -922,22 +922,22 @@ export default function DirectorPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">💕 心动女嘉宾</h2>
               <span className="text-xs px-2 py-1 bg-rose-500/20 text-rose-300 rounded-full">
-                🔒 私密
+                🔒 男嘉宾{state.currentMaleGuest}号
               </span>
             </div>
             
             {/* Current selection status */}
-            {state.heartChoice ? (
+            {state.heartChoices[state.currentMaleGuest] ? (
               <div className="mb-3 p-3 bg-rose-500/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-rose-300 text-sm">已选择：</span>
                     <span className="font-bold text-lg ml-2">
-                      {state.heartChoice}号 {femaleGuests.find(g => g.id === state.heartChoice)?.nickname || femaleGuests.find(g => g.id === state.heartChoice)?.name || ''}
+                      {state.heartChoices[state.currentMaleGuest]}号 {femaleGuests.find(g => g.id === state.heartChoices[state.currentMaleGuest])?.nickname || femaleGuests.find(g => g.id === state.heartChoices[state.currentMaleGuest])?.name || ''}
                     </span>
                   </div>
                   <button
-                    onClick={() => updateState({ heartChoice: null })}
+                    onClick={() => updateState({ heartChoices: { ...state.heartChoices, [state.currentMaleGuest]: null } })}
                     className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded"
                   >
                     清除
@@ -954,12 +954,13 @@ export default function DirectorPage() {
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((id) => {
                 const guest = femaleGuests.find(g => g.id === id);
-                const isSelected = state.heartChoice === id;
+                const currentHeartChoice = state.heartChoices[state.currentMaleGuest];
+                const isSelected = currentHeartChoice === id;
                 const isLightOn = state.lights[id] !== 'off';
                 return (
                   <button
                     key={id}
-                    onClick={() => updateState({ heartChoice: isSelected ? null : id })}
+                    onClick={() => updateState({ heartChoices: { ...state.heartChoices, [state.currentMaleGuest]: isSelected ? null : id } })}
                     className={`relative py-2 rounded-lg transition-all text-xs ${
                       isSelected
                         ? 'bg-rose-500 ring-2 ring-rose-300 shadow-lg shadow-rose-500/30'
