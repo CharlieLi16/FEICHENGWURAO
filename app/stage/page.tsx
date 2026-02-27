@@ -53,7 +53,7 @@ function GuestLight({
         )}
         
         {/* Heart indicator */}
-        <div className="absolute -bottom-1 -right-1 text-lg drop-shadow-lg">
+        <div className="absolute -bottom-2 -right-2 text-2xl drop-shadow-lg">
           {isActive ? '❤️' : '💔'}
         </div>
       </div>
@@ -1146,7 +1146,7 @@ export default function StagePage() {
         </div>
 
         {/* Female Guests Lights - Two rows of 6 */}
-        <div className="max-w-6xl mx-auto mb-8">
+        <div className="max-w-6xl mx-auto mb-8 mt-8 md:mt-12">
           {/* Top row: 1-6 */}
           <div className="grid grid-cols-6 gap-4 md:gap-6 mb-6 md:mb-8">
             {[1, 2, 3, 4, 5, 6].map((id) => {
