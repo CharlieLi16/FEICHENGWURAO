@@ -933,8 +933,8 @@ function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
 }
 
 export default function StagePage() {
-  // Stage is mostly READ-ONLY, but can clear sound state after playing
-  const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
+  // Stage is READ-ONLY - all control from Director panel
+  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
   const { play, stopAll } = useSound();
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
@@ -1025,18 +1025,27 @@ export default function StagePage() {
     prevLightsRef.current = { ...state.lights };
   }, [state.lights, play]);
 
-  // Play sound effects triggered from Director panel, then clear state
-  const lastSoundTimestamp = useRef<number>(0);
-  useEffect(() => {
-    if (state.soundToPlay && state.soundTimestamp && state.soundTimestamp > lastSoundTimestamp.current) {
-      lastSoundTimestamp.current = state.soundTimestamp;
-      play(state.soundToPlay as Parameters<typeof play>[0]);
-      // Clear state after a short delay to prevent replay on refresh
-      setTimeout(() => {
-        updateState({ soundToPlay: undefined, soundTimestamp: undefined });
-      }, 500);
+  // Play sound effects triggered from Director panel
+  // Use localStorage to track last played timestamp (persists across refresh)
+  const getLastSoundTimestamp = () => {
+    if (typeof window === 'undefined') return 0;
+    return parseInt(localStorage.getItem('lastSoundTimestamp') || '0', 10);
+  };
+  const setLastSoundTimestamp = (ts: number) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('lastSoundTimestamp', ts.toString());
     }
-  }, [state.soundToPlay, state.soundTimestamp, play, updateState]);
+  };
+  
+  useEffect(() => {
+    if (state.soundToPlay && state.soundTimestamp) {
+      const lastTs = getLastSoundTimestamp();
+      if (state.soundTimestamp > lastTs) {
+        setLastSoundTimestamp(state.soundTimestamp);
+        play(state.soundToPlay as Parameters<typeof play>[0]);
+      }
+    }
+  }, [state.soundToPlay, state.soundTimestamp, play]);
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
   const vcrUrl = state.vcrType === 'vcr1' ? currentMale?.vcr1Url : currentMale?.vcr2Url;
@@ -1322,7 +1331,10 @@ export default function StagePage() {
       <button
         onClick={() => {
           stopAll();
-          updateState({ soundToPlay: undefined, soundTimestamp: undefined });
+          // Mark current timestamp as played to prevent replay
+          if (state.soundTimestamp) {
+            setLastSoundTimestamp(state.soundTimestamp);
+          }
         }}
         className="fixed bottom-4 right-4 z-50 p-3 bg-black/30 hover:bg-red-600/80 rounded-full opacity-30 hover:opacity-100 transition-all"
         title="停止所有音效"
