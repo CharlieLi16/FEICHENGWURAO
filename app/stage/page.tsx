@@ -825,9 +825,8 @@ function HeartRevealAnimation({
 }
 
 // Google Slides Overlay for female guest intro - Native embed (fullscreen 16:9)
-// slideIndex: 0-based slide index to display
-// For new structure: each guest has 4 slides (intro + 3 tags)
-// Guest N intro: (N-1)*4, Guest N tag i: (N-1)*4 + i + 1
+// slideIndex: 0-based slide index to display (Google Slides embed uses 0-based)
+// slide=0 shows the first page, slide=1 shows the second page, etc.
 function GoogleSlidesOverlay({ 
   slideIndex, 
   presentationId,
@@ -920,16 +919,17 @@ function GoogleSlidesOverlay({
   );
 }
 
-// Helper to calculate slide index for a guest (1-indexed for Google Slides)
+// Helper to calculate slide PAGE NUMBER for a guest (1-indexed, human-readable)
 // Each guest has 4 slides: intro + 3 tags
-// Guest 1: slides 1-4, Guest 2: slides 5-8, etc.
+// Guest 1: pages 1-4, Guest 2: pages 5-8, etc.
+// NOTE: When passing to GoogleSlidesOverlay, subtract 1 to convert to 0-based index!
 function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
-  // Base index: Guest 1 starts at slide 1, Guest 2 at slide 5, etc.
-  const baseIndex = (guestId - 1) * 4 + 1;
+  // Base page: Guest 1 starts at page 1, Guest 2 at page 5, etc.
+  const basePage = (guestId - 1) * 4 + 1;
   if (tagIndex === undefined) {
-    return baseIndex; // Intro slide
+    return basePage; // Intro slide
   }
-  return baseIndex + tagIndex + 1; // Tag slide (tagIndex is 0-indexed)
+  return basePage + tagIndex + 1; // Tag slide (tagIndex is 0-indexed)
 }
 
 export default function StagePage() {
@@ -1124,8 +1124,9 @@ export default function StagePage() {
       )}
 
       {/* Fullscreen Female Introduction - Google Slides or Template */}
+      {/* Note: getGuestSlideIndex returns 1-based, but Google embed uses 0-based, so subtract 1 */}
       {state.currentFemaleIntro && state.useGoogleSlides && googleSlidesId ? (
-        <GoogleSlidesOverlay slideIndex={getGuestSlideIndex(state.currentFemaleIntro)} presentationId={googleSlidesId} />
+        <GoogleSlidesOverlay slideIndex={getGuestSlideIndex(state.currentFemaleIntro) - 1} presentationId={googleSlidesId} />
       ) : currentFemaleForIntro ? (
         <FemaleGuestFullscreen guest={currentFemaleForIntro} templateConfig={templateConfig} />
       ) : null}
@@ -1282,9 +1283,10 @@ export default function StagePage() {
         )}
 
         {/* Tag Slide Overlay - shows when a tag is clicked */}
+        {/* Note: getGuestSlideIndex returns 1-based, but Google embed uses 0-based, so subtract 1 */}
         {state.showingProfile && showingTagSlide !== null && googleSlidesId && (
           <GoogleSlidesOverlay 
-            slideIndex={getGuestSlideIndex(state.showingProfile, showingTagSlide)} 
+            slideIndex={getGuestSlideIndex(state.showingProfile, showingTagSlide) - 1} 
             presentationId={googleSlidesId}
             onClose={() => setShowingTagSlide(null)}
           />
