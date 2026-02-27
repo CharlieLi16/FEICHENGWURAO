@@ -37,12 +37,19 @@ export interface FemaleGuest {
 
 // Helper to get photos from guest (handles backward compatibility)
 export function getGuestPhotos(guest: FemaleGuest): string[] {
-  if (guest.photos && guest.photos.length > 0) {
-    return guest.photos.filter(url => url && url.trim());
+  // Filter valid photos from the array
+  const validPhotos = guest.photos?.filter(url => url && url.trim()) || [];
+  
+  // If we have valid photos in the array, use those
+  if (validPhotos.length > 0) {
+    return validPhotos;
   }
-  if (guest.photo) {
+  
+  // Fallback to single photo field (legacy or manual upload)
+  if (guest.photo && guest.photo.trim()) {
     return [guest.photo];
   }
+  
   return [];
 }
 

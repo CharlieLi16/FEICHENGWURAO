@@ -135,7 +135,21 @@ export default function SetupPage() {
   // Update guest fields
   const updateFemaleGuest = (id: number, field: keyof FemaleGuest, value: string) => {
     setFemaleGuests((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, [field]: value } : g))
+      prev.map((g) => {
+        if (g.id !== id) return g;
+        
+        // When updating photo, also update photos array for consistency
+        if (field === 'photo') {
+          const existingPhotos = g.photos?.filter(url => url && url.trim()) || [];
+          // Replace first photo or add as first
+          const newPhotos = value 
+            ? [value, ...existingPhotos.slice(1)] 
+            : existingPhotos.slice(1);
+          return { ...g, photo: value, photos: newPhotos };
+        }
+        
+        return { ...g, [field]: value };
+      })
     );
   };
 
