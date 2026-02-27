@@ -96,6 +96,7 @@ export default function DirectorPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [volume, setVolumeState] = useState(0.8);
   const [lastPlayed, setLastPlayed] = useState<string | null>(null);
+  const [soundOnDirector, setSoundOnDirector] = useState(false); // true = play on director, false = send to stage
   
   // Google Slides integration
   const [slidesUrl, setSlidesUrl] = useState('');
@@ -193,9 +194,15 @@ export default function DirectorPage() {
     setMasterVolume(newVolume); // This updates currently playing sounds too!
   };
 
-  // Play sound on STAGE (sends via state update, plays on main screen)
+  // Play sound - either locally on director or send to stage
   const playSound = (soundName: string) => {
-    updateState({ soundToPlay: soundName, soundTimestamp: Date.now() });
+    if (soundOnDirector) {
+      // Play directly on director panel
+      play(soundName as Parameters<typeof play>[0]);
+    } else {
+      // Send to stage for playback
+      updateState({ soundToPlay: soundName, soundTimestamp: Date.now() });
+    }
     setLastPlayed(soundName);
     setTimeout(() => setLastPlayed(null), 300);
   };
@@ -625,8 +632,22 @@ export default function DirectorPage() {
           <div className="bg-gradient-to-br from-purple-900 to-pink-900 rounded-xl p-4 border border-purple-500/30">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">🎧 DJ 音效台</h2>
-              <div className="text-sm font-mono text-pink-300 bg-black/30 px-2 py-1 rounded">
-                {Math.round(volume * 100)}%
+              <div className="flex items-center gap-2">
+                {/* Toggle: Director vs Stage */}
+                <button
+                  onClick={() => setSoundOnDirector(!soundOnDirector)}
+                  className={`text-xs px-2 py-1 rounded transition-all ${
+                    soundOnDirector 
+                      ? 'bg-green-500/80 text-white' 
+                      : 'bg-gray-600/50 text-gray-300'
+                  }`}
+                  title={soundOnDirector ? '音效在导演台播放' : '音效在主屏幕播放'}
+                >
+                  {soundOnDirector ? '🎧 本地' : '📺 主屏'}
+                </button>
+                <div className="text-sm font-mono text-pink-300 bg-black/30 px-2 py-1 rounded">
+                  {Math.round(volume * 100)}%
+                </div>
               </div>
             </div>
             
