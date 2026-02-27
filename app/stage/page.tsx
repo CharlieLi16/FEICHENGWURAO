@@ -1145,28 +1145,6 @@ export default function StagePage() {
           )}
         </div>
 
-        {/* Male Guest Question Bar - displayed during male_question phase */}
-        {state.phase === 'male_question' && currentMale && (
-          <div className="bg-gradient-to-r from-blue-900/90 to-purple-900/90 backdrop-blur-lg py-4 px-6 mb-6 rounded-xl mx-auto max-w-4xl">
-            <div className="flex items-center gap-4">
-              {currentMale.photo ? (
-                <img 
-                  src={currentMale.photo} 
-                  alt={currentMale.name} 
-                  className="w-16 h-16 rounded-full object-cover border-2 border-blue-400"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-2xl border-2 border-blue-400">
-                  👤
-                </div>
-              )}
-              <div className="flex-1">
-                <p className="text-blue-300 text-sm">{currentMale.nickname || currentMale.name} 的需求</p>
-                <p className="text-white text-xl md:text-2xl font-bold">{currentMale.question || '寻找真爱...'}</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Female Guests Lights - Two rows of 6, enlarged +60% total */}
         <div className="w-full mx-auto mb-8 mt-4 md:mt-8 px-4">
@@ -1287,6 +1265,53 @@ export default function StagePage() {
             presentationId={googleSlidesId}
             onClose={() => setShowingTagSlide(null)}
           />
+        )}
+
+        {/* Male Guest Question Full Page - displayed during male_question phase */}
+        {state.phase === 'male_question' && currentMale && (
+          <div className="fixed inset-0 z-50 bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 flex items-center justify-center">
+            {/* Background decorations */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-pink-500/10 rounded-full blur-3xl" />
+            </div>
+            
+            {/* Content */}
+            <div className="relative z-10 text-center max-w-4xl mx-auto px-8">
+              {/* Photo */}
+              <div className="mb-8">
+                {currentMale.photo ? (
+                  <img 
+                    src={currentMale.photo} 
+                    alt={currentMale.name} 
+                    className="w-40 h-40 md:w-52 md:h-52 rounded-full object-cover mx-auto border-4 border-blue-400 shadow-2xl shadow-blue-500/30"
+                  />
+                ) : (
+                  <div className="w-40 h-40 md:w-52 md:h-52 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-6xl mx-auto border-4 border-blue-400 shadow-2xl shadow-blue-500/30">
+                    👤
+                  </div>
+                )}
+              </div>
+              
+              {/* Name */}
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+                {currentMale.nickname || currentMale.name}
+              </h2>
+              
+              {/* Question label */}
+              <p className="text-blue-300 text-xl md:text-2xl mb-4 tracking-wider">
+                💭 我的问题
+              </p>
+              
+              {/* Question text */}
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl px-8 py-6 md:px-12 md:py-8 border border-white/20">
+                <p className="text-white text-2xl md:text-4xl font-bold leading-relaxed">
+                  {currentMale.question || '...'}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
