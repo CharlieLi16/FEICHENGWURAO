@@ -193,9 +193,9 @@ export default function DirectorPage() {
     setMasterVolume(newVolume); // This updates currently playing sounds too!
   };
 
-  // Play sound on STAGE (sends via state update, plays on main screen)
+  // Play sound locally on director
   const playSound = (soundName: string) => {
-    updateState({ soundToPlay: soundName, soundTimestamp: Date.now() });
+    play(soundName as Parameters<typeof play>[0]);
     setLastPlayed(soundName);
     setTimeout(() => setLastPlayed(null), 300);
   };

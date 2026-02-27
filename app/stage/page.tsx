@@ -933,9 +933,9 @@ function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
 }
 
 export default function StagePage() {
-  // Stage is mostly READ-ONLY, but can clear sound state
-  const { state, femaleGuests, maleGuests, slides, connected, error, updateState } = useEventStream();
-  const { play, stopAll } = useSound();
+  // Stage is READ-ONLY - all control from Director panel
+  const { state, femaleGuests, maleGuests, slides, connected, error } = useEventStream();
+  const { play } = useSound();
   const [time, setTime] = useState(new Date());
   const [showRoundInfo, setShowRoundInfo] = useState(true);
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
@@ -1024,15 +1024,6 @@ export default function StagePage() {
     // Update ref
     prevLightsRef.current = { ...state.lights };
   }, [state.lights, play]);
-
-  // Play sound effects triggered from Director panel
-  const lastSoundTimestamp = useRef<number>(0);
-  useEffect(() => {
-    if (state.soundToPlay && state.soundTimestamp && state.soundTimestamp > lastSoundTimestamp.current) {
-      lastSoundTimestamp.current = state.soundTimestamp;
-      play(state.soundToPlay as Parameters<typeof play>[0]);
-    }
-  }, [state.soundToPlay, state.soundTimestamp, play]);
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
   const vcrUrl = state.vcrType === 'vcr1' ? currentMale?.vcr1Url : currentMale?.vcr2Url;
@@ -1313,19 +1304,6 @@ export default function StagePage() {
           {error}
         </div>
       )}
-
-      {/* Stop all sounds button - subtle, bottom-right */}
-      <button
-        onClick={() => {
-          stopAll();
-          // Clear sound state so refresh won't replay
-          updateState({ soundToPlay: undefined, soundTimestamp: undefined });
-        }}
-        className="fixed bottom-4 right-4 z-50 p-3 bg-black/30 hover:bg-red-600/80 rounded-full opacity-30 hover:opacity-100 transition-all"
-        title="停止所有音效"
-      >
-        <span className="text-white text-lg">⏹</span>
-      </button>
 
       {/* Decorative elements */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
