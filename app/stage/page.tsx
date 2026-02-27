@@ -1025,27 +1025,25 @@ export default function StagePage() {
     prevLightsRef.current = { ...state.lights };
   }, [state.lights, play]);
 
-  // Play sound effects triggered from Director panel
-  // Use localStorage to track last played timestamp (persists across refresh)
-  const getLastSoundTimestamp = () => {
-    if (typeof window === 'undefined') return 0;
-    return parseInt(localStorage.getItem('lastSoundTimestamp') || '0', 10);
-  };
-  const setLastSoundTimestamp = (ts: number) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lastSoundTimestamp', ts.toString());
-    }
-  };
+  // Sound effects - store pending sound for manual play button
+  const [pendingSound, setPendingSound] = useState<string | null>(null);
+  const [lastPlayedTimestamp, setLastPlayedTimestamp] = useState<number>(0);
   
+  // When a new sound comes in, set it as pending
   useEffect(() => {
-    if (state.soundToPlay && state.soundTimestamp) {
-      const lastTs = getLastSoundTimestamp();
-      if (state.soundTimestamp > lastTs) {
-        setLastSoundTimestamp(state.soundTimestamp);
-        play(state.soundToPlay as Parameters<typeof play>[0]);
-      }
+    if (state.soundToPlay && state.soundTimestamp && state.soundTimestamp > lastPlayedTimestamp) {
+      setPendingSound(state.soundToPlay);
     }
-  }, [state.soundToPlay, state.soundTimestamp, play]);
+  }, [state.soundToPlay, state.soundTimestamp, lastPlayedTimestamp]);
+  
+  // Play the pending sound (called from button)
+  const playPendingSound = useCallback(() => {
+    if (pendingSound) {
+      play(pendingSound as Parameters<typeof play>[0]);
+      setLastPlayedTimestamp(state.soundTimestamp || Date.now());
+      setPendingSound(null);
+    }
+  }, [pendingSound, play, state.soundTimestamp]);
 
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
   const vcrUrl = state.vcrType === 'vcr1' ? currentMale?.vcr1Url : currentMale?.vcr2Url;
@@ -1340,14 +1338,25 @@ export default function StagePage() {
         </div>
       )}
 
+      {/* Play sound button - bottom-left, shows when there's a pending sound */}
+      <button
+        onClick={playPendingSound}
+        className={`fixed bottom-4 left-4 z-50 p-4 rounded-full transition-all ${
+          pendingSound 
+            ? 'bg-green-500/80 hover:bg-green-400 opacity-100 animate-pulse shadow-lg shadow-green-500/50' 
+            : 'bg-black/20 opacity-20 hover:opacity-40'
+        }`}
+        title={pendingSound ? `播放: ${pendingSound}` : '等待音效...'}
+      >
+        <span className="text-white text-2xl">▶</span>
+      </button>
+
       {/* Stop all sounds button - subtle, bottom-right */}
       <button
         onClick={() => {
           stopAll();
-          // Mark current timestamp as played to prevent replay
-          if (state.soundTimestamp) {
-            setLastSoundTimestamp(state.soundTimestamp);
-          }
+          setPendingSound(null);
+          setLastPlayedTimestamp(state.soundTimestamp || Date.now());
         }}
         className="fixed bottom-4 right-4 z-50 p-3 bg-black/30 hover:bg-red-600/80 rounded-full opacity-30 hover:opacity-100 transition-all"
         title="停止所有音效"
