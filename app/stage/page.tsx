@@ -25,21 +25,21 @@ function GuestLight({
 
   return (
     <div className={`relative flex flex-col items-center transition-all duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-60'}`}>
-      {/* Light glow effect - 40% larger */}
+      {/* Light glow effect - enlarged +20% */}
       <div 
-        className={`absolute -inset-6 rounded-full blur-2xl transition-all duration-500 ${isBurst ? 'animate-pulse' : ''}`}
+        className={`absolute -inset-8 rounded-full blur-2xl transition-all duration-500 ${isBurst ? 'animate-pulse' : ''}`}
         style={{ 
           backgroundColor: color,
           opacity: isActive ? 0.5 : 0,
         }}
       />
       
-      {/* Main light circle - 40% larger (w-36 h-36 md:w-44 md:h-44) */}
+      {/* Main light circle - enlarged +20% (w-44 h-44 md:w-52 md:h-52) */}
       <div 
-        className={`relative w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-lg transition-all duration-300 ${isBurst ? 'animate-bounce' : ''}`}
+        className={`relative w-44 h-44 md:w-52 md:h-52 rounded-full flex items-center justify-center text-white font-bold text-4xl shadow-lg transition-all duration-300 ${isBurst ? 'animate-bounce' : ''}`}
         style={{ 
           backgroundColor: color,
-          boxShadow: isActive ? `0 0 42px ${color}` : 'none',
+          boxShadow: isActive ? `0 0 50px ${color}` : 'none',
         }}
       >
         {photo ? (
@@ -52,16 +52,16 @@ function GuestLight({
           guestId
         )}
         
-        {/* Heart indicator - 40% larger */}
-        <div className="absolute -bottom-3 -right-3 text-3xl drop-shadow-lg">
+        {/* Heart indicator - enlarged +20% */}
+        <div className="absolute -bottom-4 -right-4 text-4xl drop-shadow-lg">
           {isActive ? '❤️' : '💔'}
         </div>
       </div>
       
-      {/* Name label - 40% larger */}
-      <div className={`mt-4 text-center transition-all ${isActive ? 'text-white' : 'text-gray-500'}`}>
-        <div className="font-semibold text-base md:text-lg">{name || `女嘉宾 ${guestId}`}</div>
-        <div className="text-sm opacity-70">
+      {/* Name label - enlarged +20% */}
+      <div className={`mt-5 text-center transition-all ${isActive ? 'text-white' : 'text-gray-500'}`}>
+        <div className="font-semibold text-lg md:text-xl">{name || `女嘉宾 ${guestId}`}</div>
+        <div className="text-base opacity-70">
           {status === 'on' && '亮灯'}
           {status === 'off' && '灭灯'}
           {status === 'burst' && '💖 爆灯'}
@@ -1145,10 +1145,33 @@ export default function StagePage() {
           )}
         </div>
 
-        {/* Female Guests Lights - Two rows of 6, enlarged 40% */}
-        <div className="max-w-7xl mx-auto mb-8 mt-4 md:mt-8">
+        {/* Male Guest Question Bar - displayed during male_question phase */}
+        {state.phase === 'male_question' && currentMale && (
+          <div className="bg-gradient-to-r from-blue-900/90 to-purple-900/90 backdrop-blur-lg py-4 px-6 mb-6 rounded-xl mx-auto max-w-4xl">
+            <div className="flex items-center gap-4">
+              {currentMale.photo ? (
+                <img 
+                  src={currentMale.photo} 
+                  alt={currentMale.name} 
+                  className="w-16 h-16 rounded-full object-cover border-2 border-blue-400"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-2xl border-2 border-blue-400">
+                  👤
+                </div>
+              )}
+              <div className="flex-1">
+                <p className="text-blue-300 text-sm">{currentMale.nickname || currentMale.name} 的需求</p>
+                <p className="text-white text-xl md:text-2xl font-bold">{currentMale.question || '寻找真爱...'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Female Guests Lights - Two rows of 6, enlarged +60% total */}
+        <div className="w-full mx-auto mb-8 mt-4 md:mt-8 px-4">
           {/* Top row: 1-6 */}
-          <div className="grid grid-cols-6 gap-2 md:gap-4 mb-4 md:mb-6">
+          <div className="grid grid-cols-6 gap-4 md:gap-6 mb-6 md:mb-8">
             {[1, 2, 3, 4, 5, 6].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
               const photos = guest ? getGuestPhotos(guest) : [];
@@ -1165,7 +1188,7 @@ export default function StagePage() {
           </div>
           
           {/* Bottom row: 7-12 */}
-          <div className="grid grid-cols-6 gap-2 md:gap-4">
+          <div className="grid grid-cols-6 gap-4 md:gap-6">
             {[7, 8, 9, 10, 11, 12].map((id) => {
               const guest = femaleGuests.find(g => g.id === id);
               const photos = guest ? getGuestPhotos(guest) : [];
@@ -1183,7 +1206,8 @@ export default function StagePage() {
         </div>
 
         {/* Male Guest Card (when relevant) - no introduction shown on stage */}
-        {['male_enter', 'male_question', 'talent', 'final_choice'].includes(state.phase) && currentMale && (
+        {/* Note: male_question phase uses top bar instead */}
+        {['male_enter', 'talent', 'final_choice'].includes(state.phase) && currentMale && (
           <div className="mt-8">
             <MaleGuestCard
               name={currentMale.nickname || currentMale.name}
