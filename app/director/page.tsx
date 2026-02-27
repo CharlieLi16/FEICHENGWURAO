@@ -927,17 +927,17 @@ export default function DirectorPage() {
             </div>
             
             {/* Current selection status */}
-            {state.heartChoices[state.currentMaleGuest] ? (
+            {state.heartChoices?.[state.currentMaleGuest] ? (
               <div className="mb-3 p-3 bg-rose-500/20 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-rose-300 text-sm">已选择：</span>
                     <span className="font-bold text-lg ml-2">
-                      {state.heartChoices[state.currentMaleGuest]}号 {femaleGuests.find(g => g.id === state.heartChoices[state.currentMaleGuest])?.nickname || femaleGuests.find(g => g.id === state.heartChoices[state.currentMaleGuest])?.name || ''}
+                      {state.heartChoices[state.currentMaleGuest]}号 {femaleGuests.find(g => g.id === state.heartChoices?.[state.currentMaleGuest])?.nickname || femaleGuests.find(g => g.id === state.heartChoices?.[state.currentMaleGuest])?.name || ''}
                     </span>
                   </div>
                   <button
-                    onClick={() => updateState({ heartChoices: { ...state.heartChoices, [state.currentMaleGuest]: null } })}
+                    onClick={() => updateState({ heartChoices: { ...(state.heartChoices || {}), [state.currentMaleGuest]: null } })}
                     className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded"
                   >
                     清除
@@ -954,13 +954,13 @@ export default function DirectorPage() {
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((id) => {
                 const guest = femaleGuests.find(g => g.id === id);
-                const currentHeartChoice = state.heartChoices[state.currentMaleGuest];
+                const currentHeartChoice = state.heartChoices?.[state.currentMaleGuest];
                 const isSelected = currentHeartChoice === id;
                 const isLightOn = state.lights[id] !== 'off';
                 return (
                   <button
                     key={id}
-                    onClick={() => updateState({ heartChoices: { ...state.heartChoices, [state.currentMaleGuest]: isSelected ? null : id } })}
+                    onClick={() => updateState({ heartChoices: { ...(state.heartChoices || {}), [state.currentMaleGuest]: isSelected ? null : id } })}
                     className={`relative py-2 rounded-lg transition-all text-xs ${
                       isSelected
                         ? 'bg-rose-500 ring-2 ring-rose-300 shadow-lg shadow-rose-500/30'

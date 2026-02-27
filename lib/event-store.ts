@@ -51,7 +51,17 @@ async function ensureHydratedOnce(): Promise<void> {
           maleGuests = savedData.maleGuests || [];
           slides = savedData.slides || [...defaultSlideSlots];
           if (savedData.eventState) {
-            eventState = { ...eventState, ...savedData.eventState, lastUpdated: Date.now() };
+            // Migrate old heartChoice to heartChoices if needed
+            const migratedState = { ...savedData.eventState };
+            if (!migratedState.heartChoices) {
+              // Old format: heartChoice was a single value
+              const oldHeartChoice = (migratedState as unknown as { heartChoice?: number | null }).heartChoice;
+              migratedState.heartChoices = { 
+                1: oldHeartChoice ?? null, 
+                2: null, 3: null, 4: null, 5: null, 6: null 
+              };
+            }
+            eventState = { ...eventState, ...migratedState, lastUpdated: Date.now() };
           }
           hydrationSuccessful = true;
           return;
