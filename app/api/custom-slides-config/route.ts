@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractPresentationId } from '@/lib/google-slides';
-import { put, head, del } from '@vercel/blob';
+import { put, list, del } from '@vercel/blob';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
@@ -59,13 +59,18 @@ export async function GET() {
       return NextResponse.json({ configured: false });
     }
 
-    // Production: use Vercel Blob
-    const blobInfo = await head(BLOB_PATH);
-    if (!blobInfo) {
+    // Production: use Vercel Blob - use list() for reliable retrieval
+    const { blobs } = await list({ prefix: BLOB_PATH });
+    if (blobs.length === 0) {
       return NextResponse.json({ configured: false });
     }
 
-    const response = await fetch(blobInfo.url);
+    // Get the latest blob (in case of duplicates)
+    const latest = blobs.sort((a, b) => 
+      new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    )[0];
+
+    const response = await fetch(`${latest.url}?t=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) {
       return NextResponse.json({ configured: false });
     }
@@ -107,14 +112,19 @@ export async function POST(request: NextRequest) {
     if (isLocalDev) {
       writeLocalConfig(config);
     } else {
+      // Clean up any old blobs first
       try {
-        const existing = await head(BLOB_PATH);
-        if (existing) await del(existing.url);
+        const { blobs } = await list({ prefix: BLOB_PATH });
+        for (const blob of blobs) {
+          await del(blob.url);
+        }
       } catch {}
       
       await put(BLOB_PATH, JSON.stringify(config, null, 2), {
         access: 'public',
         contentType: 'application/json',
+        addRandomSuffix: false,
+        allowOverwrite: true,
       });
     }
     
@@ -139,9 +149,9 @@ export async function DELETE() {
     if (isLocalDev) {
       deleteLocalConfig();
     } else {
-      const existing = await head(BLOB_PATH);
-      if (existing) {
-        await del(existing.url);
+      const { blobs } = await list({ prefix: BLOB_PATH });
+      for (const blob of blobs) {
+        await del(blob.url);
       }
     }
     return NextResponse.json({ success: true });
