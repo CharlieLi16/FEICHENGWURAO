@@ -1025,6 +1025,15 @@ export default function StagePage() {
     prevLightsRef.current = { ...state.lights };
   }, [state.lights, play]);
 
+  // Play sound effects triggered from Director panel
+  const lastSoundTimestamp = useRef<number>(0);
+  useEffect(() => {
+    if (state.soundToPlay && state.soundTimestamp && state.soundTimestamp > lastSoundTimestamp.current) {
+      lastSoundTimestamp.current = state.soundTimestamp;
+      play(state.soundToPlay as Parameters<typeof play>[0]);
+    }
+  }, [state.soundToPlay, state.soundTimestamp, play]);
+
   const currentMale = maleGuests.find(g => g.id === state.currentMaleGuest);
   const vcrUrl = state.vcrType === 'vcr1' ? currentMale?.vcr1Url : currentMale?.vcr2Url;
 

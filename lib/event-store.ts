@@ -113,6 +113,9 @@ function getDataForSave() {
       // These are Director-controlled but Stage needs them for display
       showingProfile: eventState.showingProfile,
       showingTag: eventState.showingTag,
+      // Sound to play on stage (triggered from Director)
+      soundToPlay: eventState.soundToPlay,
+      soundTimestamp: eventState.soundTimestamp,
     },
   };
 }
