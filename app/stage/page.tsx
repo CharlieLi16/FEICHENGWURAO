@@ -941,6 +941,7 @@ export default function StagePage() {
   const prevLightsRef = useRef<Record<number, LightStatus>>({});
   const [templateConfig, setTemplateConfig] = useState<TemplateConfig>(defaultTemplateConfig);
   const [googleSlidesId, setGoogleSlidesId] = useState<string | null>(null);
+  const [customSlidesId, setCustomSlidesId] = useState<string | null>(null);
   // Track which tag slide is being shown (null = none, 0-2 = tag index)
   const [showingTagSlide, setShowingTagSlide] = useState<number | null>(null);
 
@@ -956,7 +957,7 @@ export default function StagePage() {
       .catch(err => console.error('Failed to load template config:', err));
   }, []);
 
-  // Load Google Slides config
+  // Load Google Slides config (for female guest intro)
   useEffect(() => {
     fetch('/api/google-slides')
       .then(res => res.json())
@@ -966,6 +967,18 @@ export default function StagePage() {
         }
       })
       .catch(err => console.error('Failed to load Google Slides config:', err));
+  }, []);
+
+  // Load custom slides Google Slides config (separate from female guest intro)
+  useEffect(() => {
+    fetch('/api/custom-slides-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.configured && data.presentationId) {
+          setCustomSlidesId(data.presentationId);
+        }
+      })
+      .catch(err => console.error('Failed to load custom slides config:', err));
   }, []);
 
   // Clear tag slide when profile changes
@@ -1051,10 +1064,11 @@ export default function StagePage() {
       />
 
       {/* Slide Overlay - highest priority, displays over everything */}
-      {currentSlide?.googleSlideIndex && googleSlidesId ? (
+      {/* Uses separate Google Slides config from female guest intro */}
+      {currentSlide?.googleSlideIndex && customSlidesId ? (
         <GoogleSlidesOverlay 
           slideIndex={currentSlide.googleSlideIndex} 
-          presentationId={googleSlidesId} 
+          presentationId={customSlidesId} 
         />
       ) : currentSlide?.imageUrl ? (
         <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} blur={blurValue} />

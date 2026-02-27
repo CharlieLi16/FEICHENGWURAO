@@ -10,23 +10,29 @@ function generateId(): string {
   return `slide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+interface SlidesConfig {
+  configured: boolean;
+  presentationId?: string;
+  presentationUrl?: string;
+  slideCount?: number;
+}
+
 export default function SlidesPage() {
   const [slides, setSlides] = useState<SlideSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   
-  // Google Slides config
-  const [googleSlidesConfig, setGoogleSlidesConfig] = useState<{
-    configured: boolean;
-    presentationId?: string;
-    slideCount?: number;
-  } | null>(null);
+  // Custom slides Google Slides config (separate from female guest intro)
+  const [customSlidesConfig, setCustomSlidesConfig] = useState<SlidesConfig | null>(null);
+  const [slidesUrlInput, setSlidesUrlInput] = useState('');
+  const [slideCountInput, setSlideCountInput] = useState('50');
+  const [configuringSlides, setConfiguringSlides] = useState(false);
 
   // Load existing slides and Google Slides config
   useEffect(() => {
     loadData();
-    loadGoogleSlidesConfig();
+    loadCustomSlidesConfig();
   }, []);
 
   const loadData = async () => {
@@ -48,13 +54,51 @@ export default function SlidesPage() {
     }
   };
   
-  const loadGoogleSlidesConfig = async () => {
+  const loadCustomSlidesConfig = async () => {
     try {
-      const res = await fetch('/api/google-slides');
+      const res = await fetch('/api/custom-slides-config');
       const data = await res.json();
-      setGoogleSlidesConfig(data);
+      setCustomSlidesConfig(data);
+      if (data.presentationUrl) {
+        setSlidesUrlInput(data.presentationUrl);
+      }
+      if (data.slideCount) {
+        setSlideCountInput(String(data.slideCount));
+      }
     } catch (e) {
-      console.error('Error loading Google Slides config:', e);
+      console.error('Error loading custom slides config:', e);
+    }
+  };
+
+  const saveCustomSlidesConfig = async () => {
+    if (!slidesUrlInput.trim()) {
+      setMessage('❌ 请输入 Google Slides 链接');
+      return;
+    }
+    
+    setConfiguringSlides(true);
+    try {
+      const res = await fetch('/api/custom-slides-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          url: slidesUrlInput.trim(),
+          slideCount: parseInt(slideCountInput) || 50
+        }),
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setMessage('✅ Google Slides 配置成功！');
+        loadCustomSlidesConfig();
+      } else {
+        setMessage(`❌ ${data.error || '配置失败'}`);
+      }
+    } catch (e) {
+      setMessage('❌ 配置失败');
+      console.error(e);
+    } finally {
+      setConfiguringSlides(false);
     }
   };
 
@@ -178,24 +222,86 @@ export default function SlidesPage() {
         </div>
       )}
 
+      {/* Google Slides Configuration for Custom Slides */}
+      <div className="mb-6 p-4 bg-gradient-to-br from-green-900/30 to-emerald-900/30 rounded-xl border border-green-500/30">
+        <h3 className="font-bold mb-3 text-green-400">📊 幻灯片 Google Slides 配置</h3>
+        <p className="text-xs text-gray-400 mb-3">
+          此配置仅用于幻灯片功能，与女嘉宾介绍的 PPT 是独立的
+        </p>
+        
+        {customSlidesConfig?.configured ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-green-400">✓ 已配置</span>
+              <span className="text-gray-400">({customSlidesConfig.slideCount || '?'} 页)</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={slidesUrlInput}
+                onChange={(e) => setSlidesUrlInput(e.target.value)}
+                placeholder="粘贴 Google Slides 链接..."
+                className="flex-1 px-3 py-2 bg-gray-800 rounded-lg text-sm"
+              />
+              <input
+                type="number"
+                value={slideCountInput}
+                onChange={(e) => setSlideCountInput(e.target.value)}
+                placeholder="页数"
+                className="w-20 px-3 py-2 bg-gray-800 rounded-lg text-sm text-center"
+                min={1}
+              />
+              <button
+                onClick={saveCustomSlidesConfig}
+                disabled={configuringSlides}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm disabled:opacity-50"
+              >
+                {configuringSlides ? '...' : '更新'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={slidesUrlInput}
+                onChange={(e) => setSlidesUrlInput(e.target.value)}
+                placeholder="粘贴 Google Slides 链接..."
+                className="flex-1 px-3 py-2 bg-gray-800 rounded-lg text-sm"
+              />
+              <input
+                type="number"
+                value={slideCountInput}
+                onChange={(e) => setSlideCountInput(e.target.value)}
+                placeholder="页数"
+                className="w-20 px-3 py-2 bg-gray-800 rounded-lg text-sm text-center"
+                min={1}
+              />
+              <button
+                onClick={saveCustomSlidesConfig}
+                disabled={configuringSlides || !slidesUrlInput.trim()}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm disabled:opacity-50"
+              >
+                {configuringSlides ? '配置中...' : '配置'}
+              </button>
+            </div>
+            <p className="text-xs text-yellow-400">
+              ⚠ 配置后才能使用「PPT页」功能
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Instructions */}
       <div className="mb-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <h3 className="font-bold mb-2 text-yellow-400">💡 使用说明</h3>
         <ul className="text-sm text-gray-300 space-y-1">
           <li>• <strong>上传图片</strong>：推荐尺寸 1920×1080</li>
-          <li>• <strong>Google Slides</strong>：输入页码使用已配置的 PPT 页面</li>
+          <li>• <strong>Google Slides</strong>：输入页码使用上方配置的 PPT 页面</li>
           <li>• 幻灯片会全屏覆盖在主舞台上方</li>
           <li>• 点击"预览"可以在主舞台上查看效果</li>
         </ul>
-        {googleSlidesConfig?.configured ? (
-          <div className="mt-2 text-xs text-green-400">
-            ✓ Google Slides 已配置 ({googleSlidesConfig.slideCount || '?'} 页)
-          </div>
-        ) : (
-          <div className="mt-2 text-xs text-yellow-400">
-            ⚠ 如需使用 Google Slides，请先在控制台配置
-          </div>
-        )}
       </div>
 
       {/* Preset Slides */}
@@ -207,8 +313,8 @@ export default function SlidesPage() {
               key={slide.id}
               slide={slide}
               isPreset={true}
-              googleSlidesAvailable={googleSlidesConfig?.configured || false}
-              googleSlideCount={googleSlidesConfig?.slideCount || 0}
+              googleSlidesAvailable={customSlidesConfig?.configured || false}
+              googleSlideCount={customSlidesConfig?.slideCount || 0}
               onUpdate={(updates) => updateSlide(slide.id, updates)}
               onPreview={() => previewSlide(slide.id)}
               onRemove={() => {}}
@@ -246,8 +352,8 @@ export default function SlidesPage() {
                 key={slide.id}
                 slide={slide}
                 isPreset={false}
-                googleSlidesAvailable={googleSlidesConfig?.configured || false}
-                googleSlideCount={googleSlidesConfig?.slideCount || 0}
+                googleSlidesAvailable={customSlidesConfig?.configured || false}
+                googleSlideCount={customSlidesConfig?.slideCount || 0}
                 onUpdate={(updates) => updateSlide(slide.id, updates)}
                 onPreview={() => previewSlide(slide.id)}
                 onRemove={() => removeSlide(slide.id)}
