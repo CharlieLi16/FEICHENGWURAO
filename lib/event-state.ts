@@ -62,38 +62,37 @@ export interface MaleGuest {
 
 // Slide slot for custom designed images/pages
 export interface SlideSlot {
-  id: string;           // 'opening', 'intermission', 'custom-1', etc.
-  name: string;         // Display name
+  id: string;           // 'opening', 'intermission', or uuid for custom
+  name: string;         // Display name (editable for custom)
   imageUrl?: string;    // Uploaded image URL
+  googleSlideIndex?: number;  // Google Slides page number (1-based)
   description?: string; // Usage hint
 }
 
-// Pre-defined slide slot IDs
-export type SlideSlotId = 
+// Pre-defined slide slot IDs (custom slots use dynamic uuids)
+export type PresetSlideId = 
   | 'opening'       // 开场幻灯片
   | 'intermission'  // 中场休息
   | 'success'       // 牵手成功
   | 'fail'          // 牵手失败
-  | 'ending'        // 结束页面
-  | 'custom-1'      // 自定义1
-  | 'custom-2'      // 自定义2
-  | 'custom-3'      // 自定义3
-  | 'custom-4'      // 自定义4
-  | 'custom-5';     // 自定义5
+  | 'ending';       // 结束页面
 
-// Default slide slots
-export const defaultSlideSlots: SlideSlot[] = [
+// Preset slide slots (always present)
+export const presetSlideSlots: SlideSlot[] = [
   { id: 'opening', name: '开场幻灯片', description: '活动开始前展示' },
   { id: 'intermission', name: '中场休息', description: '中场时展示' },
   { id: 'success', name: '牵手成功', description: '配对成功时展示' },
   { id: 'fail', name: '牵手失败', description: '配对失败时展示' },
   { id: 'ending', name: '结束页面', description: '活动结束时展示' },
-  { id: 'custom-1', name: '自定义幻灯片 1', description: '可随时调用' },
-  { id: 'custom-2', name: '自定义幻灯片 2', description: '可随时调用' },
-  { id: 'custom-3', name: '自定义幻灯片 3', description: '可随时调用' },
-  { id: 'custom-4', name: '自定义幻灯片 4', description: '可随时调用' },
-  { id: 'custom-5', name: '自定义幻灯片 5', description: '可随时调用' },
 ];
+
+// Default slide slots (only presets, custom are added dynamically)
+export const defaultSlideSlots: SlideSlot[] = [...presetSlideSlots];
+
+// Helper to check if a slide is a preset
+export function isPresetSlide(id: string): boolean {
+  return ['opening', 'intermission', 'success', 'fail', 'ending'].includes(id);
+}
 
 export interface EventState {
   phase: EventPhase;

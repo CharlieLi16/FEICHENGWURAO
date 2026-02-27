@@ -1051,9 +1051,14 @@ export default function StagePage() {
       />
 
       {/* Slide Overlay - highest priority, displays over everything */}
-      {currentSlide?.imageUrl && (
+      {currentSlide?.googleSlideIndex && googleSlidesId ? (
+        <GoogleSlidesOverlay 
+          slideIndex={currentSlide.googleSlideIndex} 
+          presentationId={googleSlidesId} 
+        />
+      ) : currentSlide?.imageUrl ? (
         <SlideOverlay imageUrl={currentSlide.imageUrl} slideName={currentSlide.name} blur={blurValue} />
-      )}
+      ) : null}
 
       {/* VCR Overlay - READ-ONLY, controlled from Director panel */}
       <VCRPlayer 

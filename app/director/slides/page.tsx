@@ -1,19 +1,32 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SlideSlot } from '@/lib/event-state';
+import { SlideSlot, isPresetSlide, presetSlideSlots } from '@/lib/event-state';
 import Link from 'next/link';
 import SkeletonUpload from '@/components/SkeletonUpload';
+
+// Generate a simple unique ID
+function generateId(): string {
+  return `slide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
 
 export default function SlidesPage() {
   const [slides, setSlides] = useState<SlideSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Google Slides config
+  const [googleSlidesConfig, setGoogleSlidesConfig] = useState<{
+    configured: boolean;
+    presentationId?: string;
+    slideCount?: number;
+  } | null>(null);
 
-  // Load existing slides
+  // Load existing slides and Google Slides config
   useEffect(() => {
     loadData();
+    loadGoogleSlidesConfig();
   }, []);
 
   const loadData = async () => {
@@ -23,21 +36,51 @@ export default function SlidesPage() {
       const data = await res.json();
       if (data.slides?.length > 0) {
         setSlides(data.slides);
+      } else {
+        // Initialize with preset slots if no data
+        setSlides([...presetSlideSlots]);
       }
     } catch (e) {
       console.error('Error loading slides:', e);
+      setSlides([...presetSlideSlots]);
     } finally {
       setLoading(false);
     }
   };
+  
+  const loadGoogleSlidesConfig = async () => {
+    try {
+      const res = await fetch('/api/google-slides');
+      const data = await res.json();
+      setGoogleSlidesConfig(data);
+    } catch (e) {
+      console.error('Error loading Google Slides config:', e);
+    }
+  };
 
-  // Update a single slide's image
-  const updateSlideImage = (slideId: string, imageUrl: string | null) => {
+  // Update a single slide
+  const updateSlide = (slideId: string, updates: Partial<SlideSlot>) => {
     setSlides((prev) =>
       prev.map((slide) =>
-        slide.id === slideId ? { ...slide, imageUrl: imageUrl || undefined } : slide
+        slide.id === slideId ? { ...slide, ...updates } : slide
       )
     );
+  };
+
+  // Add a new custom slide
+  const addCustomSlide = () => {
+    const newSlide: SlideSlot = {
+      id: generateId(),
+      name: `自定义幻灯片`,
+      description: '可随时调用',
+    };
+    setSlides((prev) => [...prev, newSlide]);
+  };
+
+  // Remove a custom slide
+  const removeSlide = (slideId: string) => {
+    if (isPresetSlide(slideId)) return; // Can't remove preset slides
+    setSlides((prev) => prev.filter((s) => s.id !== slideId));
   };
 
   // Save all slides
@@ -94,8 +137,8 @@ export default function SlidesPage() {
   }
 
   // Group slides: preset vs custom
-  const presetSlides = slides.filter((s) => !s.id.startsWith('custom'));
-  const customSlides = slides.filter((s) => s.id.startsWith('custom'));
+  const presetSlides = slides.filter((s) => isPresetSlide(s.id));
+  const customSlides = slides.filter((s) => !isPresetSlide(s.id));
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -103,7 +146,7 @@ export default function SlidesPage() {
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">📽️ 幻灯片管理</h1>
-          <p className="text-gray-400 text-sm">上传设计好的图片，在活动中快速切换展示</p>
+          <p className="text-gray-400 text-sm">上传图片或使用 Google Slides 页面</p>
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -139,11 +182,20 @@ export default function SlidesPage() {
       <div className="mb-6 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <h3 className="font-bold mb-2 text-yellow-400">💡 使用说明</h3>
         <ul className="text-sm text-gray-300 space-y-1">
-          <li>• 上传设计好的幻灯片图片（推荐尺寸：1920×1080）</li>
-          <li>• 在控制台可以快速切换显示这些幻灯片</li>
+          <li>• <strong>上传图片</strong>：推荐尺寸 1920×1080</li>
+          <li>• <strong>Google Slides</strong>：输入页码使用已配置的 PPT 页面</li>
           <li>• 幻灯片会全屏覆盖在主舞台上方</li>
           <li>• 点击"预览"可以在主舞台上查看效果</li>
         </ul>
+        {googleSlidesConfig?.configured ? (
+          <div className="mt-2 text-xs text-green-400">
+            ✓ Google Slides 已配置 ({googleSlidesConfig.slideCount || '?'} 页)
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-yellow-400">
+            ⚠ 如需使用 Google Slides，请先在控制台配置
+          </div>
+        )}
       </div>
 
       {/* Preset Slides */}
@@ -154,8 +206,12 @@ export default function SlidesPage() {
             <SlideCard
               key={slide.id}
               slide={slide}
-              onImageChange={(url) => updateSlideImage(slide.id, url)}
+              isPreset={true}
+              googleSlidesAvailable={googleSlidesConfig?.configured || false}
+              googleSlideCount={googleSlidesConfig?.slideCount || 0}
+              onUpdate={(updates) => updateSlide(slide.id, updates)}
               onPreview={() => previewSlide(slide.id)}
+              onRemove={() => {}}
             />
           ))}
         </div>
@@ -163,17 +219,42 @@ export default function SlidesPage() {
 
       {/* Custom Slides */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold mb-4 text-purple-400">✨ 自定义幻灯片</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {customSlides.map((slide) => (
-            <SlideCard
-              key={slide.id}
-              slide={slide}
-              onImageChange={(url) => updateSlideImage(slide.id, url)}
-              onPreview={() => previewSlide(slide.id)}
-            />
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-purple-400">✨ 自定义幻灯片</h2>
+          <button
+            onClick={addCustomSlide}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium"
+          >
+            ➕ 添加幻灯片
+          </button>
         </div>
+        
+        {customSlides.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
+            <p className="mb-2">暂无自定义幻灯片</p>
+            <button
+              onClick={addCustomSlide}
+              className="text-purple-400 hover:text-purple-300"
+            >
+              点击添加 →
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {customSlides.map((slide) => (
+              <SlideCard
+                key={slide.id}
+                slide={slide}
+                isPreset={false}
+                googleSlidesAvailable={googleSlidesConfig?.configured || false}
+                googleSlideCount={googleSlidesConfig?.slideCount || 0}
+                onUpdate={(updates) => updateSlide(slide.id, updates)}
+                onPreview={() => previewSlide(slide.id)}
+                onRemove={() => removeSlide(slide.id)}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Save Button (floating) */}
@@ -193,32 +274,153 @@ export default function SlidesPage() {
 // Slide Card Component
 interface SlideCardProps {
   slide: SlideSlot;
-  onImageChange: (url: string | null) => void;
+  isPreset: boolean;
+  googleSlidesAvailable: boolean;
+  googleSlideCount: number;
+  onUpdate: (updates: Partial<SlideSlot>) => void;
   onPreview: () => void;
+  onRemove: () => void;
 }
 
-function SlideCard({ slide, onImageChange, onPreview }: SlideCardProps) {
+function SlideCard({ 
+  slide, 
+  isPreset, 
+  googleSlidesAvailable, 
+  googleSlideCount,
+  onUpdate, 
+  onPreview, 
+  onRemove 
+}: SlideCardProps) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(slide.name);
+  
+  // Determine source mode: 'image' | 'google' | 'none'
+  const sourceMode = slide.googleSlideIndex ? 'google' : slide.imageUrl ? 'image' : 'none';
+  
+  const hasContent = slide.imageUrl || slide.googleSlideIndex;
+
+  const handleNameSave = () => {
+    onUpdate({ name: nameInput.trim() || '自定义幻灯片' });
+    setEditingName(false);
+  };
+
   return (
-    <div className="bg-gray-800 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h3 className="font-bold text-white">{slide.name}</h3>
-          <p className="text-xs text-gray-400">{slide.description}</p>
-        </div>
+    <div className="bg-gray-800 rounded-xl p-4 relative">
+      {/* Remove button for custom slides */}
+      {!isPreset && (
+        <button
+          onClick={onRemove}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-400 rounded-full text-xs flex items-center justify-center shadow-lg"
+          title="删除"
+        >
+          ✕
+        </button>
+      )}
+      
+      {/* Header */}
+      <div className="mb-3">
+        {isPreset ? (
+          <div>
+            <h3 className="font-bold text-white">{slide.name}</h3>
+            <p className="text-xs text-gray-400">{slide.description}</p>
+          </div>
+        ) : editingName ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
+              className="flex-1 px-2 py-1 bg-gray-700 rounded text-sm"
+              autoFocus
+            />
+            <button
+              onClick={handleNameSave}
+              className="px-2 py-1 bg-green-600 rounded text-xs"
+            >
+              ✓
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <h3 
+              className="font-bold text-white cursor-pointer hover:text-purple-300"
+              onClick={() => setEditingName(true)}
+              title="点击编辑名称"
+            >
+              {slide.name} ✏️
+            </h3>
+          </div>
+        )}
       </div>
 
-      {/* Image Upload */}
-      <SkeletonUpload
-        value={slide.imageUrl}
-        onChange={onImageChange}
-        placeholder="上传幻灯片"
-        accept="image/*"
-        aspectRatio="16:9"
-        className="mb-3"
-      />
+      {/* Source Selection Tabs */}
+      <div className="flex gap-1 mb-3">
+        <button
+          onClick={() => onUpdate({ googleSlideIndex: undefined })}
+          className={`flex-1 py-1.5 text-xs rounded-l-lg transition-colors ${
+            sourceMode !== 'google' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+          }`}
+        >
+          📷 图片
+        </button>
+        <button
+          onClick={() => {
+            if (googleSlidesAvailable) {
+              onUpdate({ imageUrl: undefined, googleSlideIndex: 1 });
+            }
+          }}
+          disabled={!googleSlidesAvailable}
+          className={`flex-1 py-1.5 text-xs rounded-r-lg transition-colors ${
+            sourceMode === 'google' 
+              ? 'bg-green-600 text-white' 
+              : googleSlidesAvailable
+                ? 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          📊 PPT页
+        </button>
+      </div>
+
+      {/* Content Area */}
+      {sourceMode === 'google' ? (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-gray-400">页码:</span>
+            <input
+              type="number"
+              min={1}
+              max={googleSlideCount || 100}
+              value={slide.googleSlideIndex || 1}
+              onChange={(e) => onUpdate({ googleSlideIndex: parseInt(e.target.value) || 1 })}
+              className="w-20 px-2 py-1 bg-gray-700 rounded text-sm text-center"
+            />
+            <span className="text-xs text-gray-500">/ {googleSlideCount || '?'}</span>
+          </div>
+          <div className="aspect-video bg-gray-700 rounded-lg flex items-center justify-center text-4xl">
+            📊
+          </div>
+          <div className="text-center text-xs text-green-400 mt-1">
+            使用 Google Slides 第 {slide.googleSlideIndex} 页
+          </div>
+        </div>
+      ) : (
+        <div className="mb-3">
+          <SkeletonUpload
+            value={slide.imageUrl}
+            onChange={(url) => onUpdate({ imageUrl: url || undefined })}
+            placeholder="上传幻灯片"
+            accept="image/*"
+            aspectRatio="16:9"
+          />
+        </div>
+      )}
 
       {/* Preview Button */}
-      {slide.imageUrl && (
+      {hasContent && (
         <button
           onClick={onPreview}
           className="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"

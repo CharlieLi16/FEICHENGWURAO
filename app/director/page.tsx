@@ -2,7 +2,7 @@
 
 import { useEventStream } from '@/hooks/useEventStream';
 import { useSound } from '@/hooks/useSound';
-import { EventPhase, phaseNames, lightColors, SlideSlot } from '@/lib/event-state';
+import { EventPhase, phaseNames, lightColors, SlideSlot, isPresetSlide } from '@/lib/event-state';
 import Link from 'next/link';
 import SkeletonUpload from '@/components/SkeletonUpload';
 import { useState, useEffect } from 'react';
@@ -756,46 +756,55 @@ export default function DirectorPage() {
 
             {/* Preset slides - quick access */}
             <div className="grid grid-cols-2 gap-2 text-sm">
-              {slides.filter(s => !s.id.startsWith('custom')).map((slide) => (
-                <button
-                  key={slide.id}
-                  onClick={() => slide.imageUrl ? showSlide(slide.id) : null}
-                  disabled={!slide.imageUrl}
-                  className={`py-2 px-3 rounded-lg transition-all ${
-                    state.currentSlide === slide.id
-                      ? 'bg-indigo-500 ring-2 ring-indigo-300'
-                      : slide.imageUrl
-                        ? 'bg-gray-700 hover:bg-gray-600'
-                        : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {slide.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Custom slides */}
-            <div className="mt-3 pt-3 border-t border-gray-700">
-              <div className="text-xs text-gray-400 mb-2">自定义幻灯片</div>
-              <div className="flex gap-2 flex-wrap">
-                {slides.filter(s => s.id.startsWith('custom')).map((slide, i) => (
+              {slides.filter(s => isPresetSlide(s.id)).map((slide) => {
+                const hasContent = slide.imageUrl || slide.googleSlideIndex;
+                return (
                   <button
                     key={slide.id}
-                    onClick={() => slide.imageUrl ? showSlide(slide.id) : null}
-                    disabled={!slide.imageUrl}
-                    className={`py-1.5 px-3 rounded-lg text-xs transition-all ${
+                    onClick={() => hasContent ? showSlide(slide.id) : null}
+                    disabled={!hasContent}
+                    className={`py-2 px-3 rounded-lg transition-all ${
                       state.currentSlide === slide.id
                         ? 'bg-indigo-500 ring-2 ring-indigo-300'
-                        : slide.imageUrl
+                        : hasContent
                           ? 'bg-gray-700 hover:bg-gray-600'
                           : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    #{i + 1}
+                    {slide.googleSlideIndex ? '📊 ' : ''}{slide.name}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+
+            {/* Custom slides */}
+            {slides.filter(s => !isPresetSlide(s.id)).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-700">
+                <div className="text-xs text-gray-400 mb-2">自定义幻灯片</div>
+                <div className="flex gap-2 flex-wrap">
+                  {slides.filter(s => !isPresetSlide(s.id)).map((slide) => {
+                    const hasContent = slide.imageUrl || slide.googleSlideIndex;
+                    return (
+                      <button
+                        key={slide.id}
+                        onClick={() => hasContent ? showSlide(slide.id) : null}
+                        disabled={!hasContent}
+                        className={`py-1.5 px-3 rounded-lg text-xs transition-all ${
+                          state.currentSlide === slide.id
+                            ? 'bg-indigo-500 ring-2 ring-indigo-300'
+                            : hasContent
+                              ? 'bg-gray-700 hover:bg-gray-600'
+                              : 'bg-gray-800/50 text-gray-500 cursor-not-allowed'
+                        }`}
+                        title={slide.googleSlideIndex ? `PPT 第 ${slide.googleSlideIndex} 页` : undefined}
+                      >
+                        {slide.googleSlideIndex ? '📊 ' : ''}{slide.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
