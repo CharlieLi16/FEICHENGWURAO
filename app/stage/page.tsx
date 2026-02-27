@@ -1087,9 +1087,10 @@ export default function StagePage() {
 
       {/* Slide Overlay - highest priority, displays over everything */}
       {/* Uses separate Google Slides config from female guest intro */}
+      {/* Note: googleSlideIndex is 1-based (user-facing), but Google embed uses 0-based */}
       {currentSlide?.googleSlideIndex && customSlidesId ? (
         <GoogleSlidesOverlay 
-          slideIndex={currentSlide.googleSlideIndex} 
+          slideIndex={currentSlide.googleSlideIndex - 1} 
           presentationId={customSlidesId} 
         />
       ) : currentSlide?.imageUrl ? (
