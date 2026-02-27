@@ -1163,13 +1163,12 @@ export default function StagePage() {
           </div>
         </div>
 
-        {/* Male Guest Card (when relevant) */}
+        {/* Male Guest Card (when relevant) - no introduction shown on stage */}
         {['male_enter', 'male_question', 'talent', 'final_choice'].includes(state.phase) && currentMale && (
           <div className="mt-8">
             <MaleGuestCard
               name={currentMale.nickname || currentMale.name}
               photo={currentMale.photo}
-              introduction={currentMale.introduction}
             />
           </div>
         )}
