@@ -193,15 +193,8 @@ export default function DirectorPage() {
     setMasterVolume(newVolume); // This updates currently playing sounds too!
   };
 
-  // Play sound on STAGE (sends via state update, plays on main screen)
-  const playSoundOnStage = (soundName: string) => {
-    updateState({ soundToPlay: soundName, soundTimestamp: Date.now() });
-    setLastPlayed(soundName);
-    setTimeout(() => setLastPlayed(null), 300);
-  };
-
-  // Play sound locally on director (for preview/testing only)
-  const playSoundLocal = (soundName: string) => {
+  // Play sound locally on director
+  const playSound = (soundName: string) => {
     play(soundName as Parameters<typeof play>[0]);
     setLastPlayed(soundName);
     setTimeout(() => setLastPlayed(null), 300);
@@ -479,7 +472,7 @@ export default function DirectorPage() {
                 {state.vcr1IntroUrl && (
                   <button
                     onClick={() => {
-                      playSoundOnStage('vcrStart');
+                      playSound('vcrStart');
                       updateState({ vcrType: 'vcr1', vcrPlaying: true, vcrPlayingIntro: true });
                     }}
                     className={`flex-1 py-2 rounded-lg text-sm ${
@@ -493,7 +486,7 @@ export default function DirectorPage() {
                 )}
                 <button
                   onClick={() => {
-                    playSoundOnStage('vcrStart');
+                    playSound('vcrStart');
                     updateState({ vcrType: 'vcr1', vcrPlaying: true, vcrPlayingIntro: false });
                   }}
                   className={`flex-1 py-2 rounded-lg text-sm ${
@@ -555,7 +548,7 @@ export default function DirectorPage() {
                 {state.vcr2IntroUrl && (
                   <button
                     onClick={() => {
-                      playSoundOnStage('vcrStart');
+                      playSound('vcrStart');
                       updateState({ vcrType: 'vcr2', vcrPlaying: true, vcrPlayingIntro: true });
                     }}
                     className={`flex-1 py-2 rounded-lg text-sm ${
@@ -569,7 +562,7 @@ export default function DirectorPage() {
                 )}
                 <button
                   onClick={() => {
-                    playSoundOnStage('vcrStart');
+                    playSound('vcrStart');
                     updateState({ vcrType: 'vcr2', vcrPlaying: true, vcrPlayingIntro: false });
                   }}
                   className={`flex-1 py-2 rounded-lg text-sm ${
@@ -603,7 +596,7 @@ export default function DirectorPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  playSoundOnStage('success');
+                  playSound('success');
                   updateState({ 
                     phase: 'result', 
                     message: '💕 牵手成功！' 
@@ -615,7 +608,7 @@ export default function DirectorPage() {
               </button>
               <button
                 onClick={() => {
-                  playSoundOnStage('fail');
+                  playSound('fail');
                   updateState({ 
                     phase: 'result', 
                     message: '💔 牵手失败' 
@@ -700,7 +693,7 @@ export default function DirectorPage() {
               {soundEffects.map(({ name, label, emoji, color }) => (
                 <button
                   key={name}
-                  onClick={() => playSoundOnStage(name)}
+                  onClick={() => playSound(name)}
                   className={`py-3 rounded-lg transition-all transform ${
                     lastPlayed === name 
                       ? `${color} scale-95 ring-2 ring-white` 
