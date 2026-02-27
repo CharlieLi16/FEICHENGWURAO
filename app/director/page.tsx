@@ -210,6 +210,8 @@ export default function DirectorPage() {
       message: phaseNames[phase],
       vcrPlaying: phase === 'vcr1' || phase === 'vcr2',
       vcrType: phase === 'vcr1' ? 'vcr1' : phase === 'vcr2' ? 'vcr2' : null,
+      showingProfile: null,
+      showingTag: null,
     });
   };
 

@@ -231,7 +231,8 @@ export async function updateEventState(updates: Partial<EventState>): Promise<Ev
     'phase', 'currentMaleGuest', 'currentRound', 'lights', 'heartChoice', 
     'stageBackground', 'backgroundBlur', 'useGoogleSlides',
     // Stage-critical fields (舞台需要这些)
-    'currentFemaleIntro', 'currentSlide', 'vcrPlaying', 'vcrType', 'message'
+    'currentFemaleIntro', 'currentSlide', 'vcrPlaying', 'vcrType', 'message',
+    'showingProfile', 'showingTag'
   ];
   if (persistKeys.some(key => key in updates)) {
     await triggerSaveImmediate();
