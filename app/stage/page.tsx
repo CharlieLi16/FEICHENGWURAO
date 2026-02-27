@@ -921,11 +921,14 @@ function GoogleSlidesOverlay({
 
 // Helper to calculate slide PAGE NUMBER for a guest (1-indexed, human-readable)
 // Each guest has 4 slides: intro + 3 tags
-// Guest 1: pages 1-4, Guest 2: pages 5-8, etc.
+// PPT has 1 cover page, so Guest 1 starts at page 2 (1-based) = index 1 (0-based)
+// Guest 1: pages 2-5, Guest 2: pages 6-9, etc.
 // NOTE: When passing to GoogleSlidesOverlay, subtract 1 to convert to 0-based index!
 function getGuestSlideIndex(guestId: number, tagIndex?: number): number {
-  // Base page: Guest 1 starts at page 1, Guest 2 at page 5, etc.
-  const basePage = (guestId - 1) * 4 + 1;
+  // Cover page offset (PPT第一页是封面)
+  const coverOffset = 1;
+  // Base page: Guest 1 starts at page 2, Guest 2 at page 6, etc.
+  const basePage = (guestId - 1) * 4 + 1 + coverOffset;
   if (tagIndex === undefined) {
     return basePage; // Intro slide
   }
