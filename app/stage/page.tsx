@@ -944,6 +944,20 @@ export default function StagePage() {
   const [customSlidesId, setCustomSlidesId] = useState<string | null>(null);
   // Track which tag slide is being shown (null = none, 0-2 = tag index)
   const [showingTagSlide, setShowingTagSlide] = useState<number | null>(null);
+  // Audio unlock - browsers require user interaction before playing audio
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  // Click anywhere to unlock audio
+  const handleUnlockAudio = useCallback(() => {
+    // Create and play a silent audio to unlock the audio context
+    const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+    silentAudio.play().then(() => {
+      setAudioUnlocked(true);
+    }).catch(() => {
+      // Still mark as unlocked - the interaction happened
+      setAudioUnlocked(true);
+    });
+  }, []);
 
   // Load template config
   useEffect(() => {
@@ -1311,6 +1325,20 @@ export default function StagePage() {
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-6 py-3 rounded-full">
           {error}
+        </div>
+      )}
+
+      {/* Audio unlock overlay - browsers require user interaction before playing audio */}
+      {!audioUnlocked && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center cursor-pointer"
+          onClick={handleUnlockAudio}
+        >
+          <div className="text-center">
+            <div className="text-8xl mb-6">🔊</div>
+            <h2 className="text-3xl font-bold text-white mb-4">点击启用音效</h2>
+            <p className="text-gray-400 text-lg">浏览器需要您点击一次以启用音频播放</p>
+          </div>
         </div>
       )}
 
